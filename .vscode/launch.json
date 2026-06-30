@@ -1,0 +1,35 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Podcaster: HTTP Server (Agent Inspector)",
+      "type": "debugpy",
+      "request": "attach",
+      "connect": {
+        "host": "127.0.0.1",
+        "port": 5679
+      },
+      "preLaunchTask": "Run Podcaster HTTP Server",
+      "postDebugTask": "Terminate All Tasks",
+      "presentation": {
+        "group": "podcaster",
+        "order": 1
+      }
+    },
+    {
+      "name": "Podcaster: CLI (one-shot)",
+      "type": "debugpy",
+      "request": "attach",
+      "connect": {
+        "host": "127.0.0.1",
+        "port": 5679
+      },
+      "preLaunchTask": "Run Podcaster CLI",
+      "postDebugTask": "Terminate All Tasks",
+      "presentation": {
+        "group": "podcaster",
+        "order": 2
+      }
+    }
+  ]
+}

@@ -1,0 +1,12 @@
+agent-framework-core>=1.9.0
+agent-framework-foundry>=1.8.2
+agent-framework-devui
+aiohttp
+azure-identity
+pydantic
+requests
+python-dotenv
+debugpy
+pytest
+# agent-dev-cli is optional — install separately for VS Code debugger/agentdev:
+#   pip install "agent-dev-cli>=0.0.1b260427" --upgrade agent-framework-core
