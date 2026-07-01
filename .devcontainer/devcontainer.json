@@ -4,14 +4,20 @@
 	"features": {
 		"ghcr.io/devcontainers/features/github-cli:1": {},
 		"ghcr.io/devcontainers/features/azure-cli:1": {},
-		"ghcr.io/azure/azure-dev/azd:0": {}
+		"ghcr.io/azure/azure-dev/azd:0": {},
+		"ghcr.io/devcontainers/features/node:1": {
+			"version": "lts"
+		}
 	},
 	"customizations": {
 		"vscode": {
 			"extensions": [
 				"ms-python.python",
-				"ms-python.vscode-pylance"
+				"ms-python.vscode-pylance",
+				"dbaeumer.vscode-eslint",
+				"esbenp.prettier-vscode"
 			]
 		}
-	}
+	},
+	"postCreateCommand": "make install && cd frontend && npm install"
 }

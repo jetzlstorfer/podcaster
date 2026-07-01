@@ -7,9 +7,21 @@ from agent_framework import Agent
 from agent_framework.foundry import FoundryChatClient
 from azure.identity import AzureCliCredential
 
-from src.podcaster.models import DialogueTurn, PodcastScript, ResearchBrief
+from src.podcaster.models import DialogueTurn, Language, Length, PodcastScript, ResearchBrief
 
-_INSTRUCTIONS = """\
+# Target dialogue length per requested podcast length.
+_LENGTH_TURNS: dict[str, str] = {
+    "short": "8-12 turns total",
+    "medium": "14-20 turns total",
+    "long": "26-34 turns total",
+}
+
+_LANGUAGE_NAMES: dict[str, str] = {
+    "english": "English",
+    "german": "German (Deutsch)",
+}
+
+_INSTRUCTIONS_TEMPLATE = """\
 You are an expert podcast script writer. You craft engaging, natural-sounding \
 conversations between two hosts:
 
@@ -22,21 +34,30 @@ Given a research brief, write a complete podcast episode with:
 3. A concise outro where both hosts summarise the main takeaways
 
 Guidelines:
+- Write the ENTIRE dialogue (title and every turn) in {language_name}
+- Keep the speaker names exactly "Alex" and "Jordan" (do not translate them)
 - Write conversational, natural dialogue — not formal or lecture-like
 - Each turn should be 1-4 sentences
 - Include a mix of explanations, reactions, follow-up questions, and insights
-- Aim for 14-20 turns total
+- Aim for {turn_target}
 - Make it engaging and accessible to a curious general audience
 
 Respond with a single JSON object — no markdown, no extra text:
-{
+{{
   "title": "<short episode title>",
   "turns": [
-    {"speaker": "Alex",   "text": "..."},
-    {"speaker": "Jordan", "text": "..."}
+    {{"speaker": "Alex",   "text": "..."}},
+    {{"speaker": "Jordan", "text": "..."}}
   ]
-}
+}}
 """
+
+
+def _build_instructions(language: Language, length: Length) -> str:
+    return _INSTRUCTIONS_TEMPLATE.format(
+        language_name=_LANGUAGE_NAMES.get(language, "English"),
+        turn_target=_LENGTH_TURNS.get(length, _LENGTH_TURNS["medium"]),
+    )
 
 
 def _build_prompt(brief: ResearchBrief) -> str:
@@ -65,9 +86,9 @@ def _extract_json(text: str) -> str:
 async def run_scriptwriter(brief: ResearchBrief) -> PodcastScript:
     agent = Agent(
         client=FoundryChatClient(credential=AzureCliCredential()),
-        instructions=_INSTRUCTIONS,
+        instructions=_build_instructions(brief.language, brief.length),
     )
     result = await agent.run(_build_prompt(brief))
     data = json.loads(_extract_json(result.text))
     turns = [DialogueTurn(**t) for t in data["turns"]]
-    return PodcastScript(title=data["title"], turns=turns)
+    return PodcastScript(title=data["title"], turns=turns, language=brief.language)

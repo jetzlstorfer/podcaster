@@ -1,7 +1,8 @@
-.PHONY: install run cli lint clean test
+.PHONY: install run web ui cli lint clean test
 
 PYTHON  := python
 PORT    := 8088
+WEB_PORT := 8089
 Q       ?= What are the latest breakthroughs in quantum computing?
 
 ## Install Python dependencies
@@ -12,6 +13,14 @@ install:
 run:
 	$(PYTHON) main.py --server --port $(PORT)
 
+## Start the FastAPI AG-UI server (backend for the web UI) on port $(WEB_PORT)
+web:
+	WEB_PORT=$(WEB_PORT) $(PYTHON) -m uvicorn server:app --host 127.0.0.1 --port $(WEB_PORT)
+
+## Start the Vite dev server for the web UI (http://127.0.0.1:5173)
+ui:
+	cd frontend && npm run dev
+
 ## Run the full pipeline once from the CLI
 ## Usage: make cli Q="Your research question here"
 cli:
@@ -19,7 +28,7 @@ cli:
 
 ## Lint with ruff (install separately: pip install ruff)
 lint:
-	ruff check src/ main.py
+	ruff check src/ main.py server.py
 
 ## Run tests (synthesizes real MP3s into output/ via the Speech API)
 test:

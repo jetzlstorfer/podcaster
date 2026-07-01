@@ -1,6 +1,9 @@
 agent-framework-core>=1.9.0
 agent-framework-foundry>=1.8.2
 agent-framework-devui
+agent-framework-ag-ui
+fastapi
+uvicorn
 aiohttp
 azure-identity
 pydantic

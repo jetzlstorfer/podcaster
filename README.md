@@ -68,10 +68,42 @@ make cli Q="What are the latest breakthroughs in quantum computing?"
 |---|---|
 | `make install` | Install Python dependencies from `requirements.txt` |
 | `make run` | Start the devui HTTP server on port 8088 (Agent Inspector) |
+| `make web` | Start the FastAPI **AG-UI** backend on port 8089 (for the web UI) |
+| `make ui` | Start the Vite dev server for the web UI (http://127.0.0.1:5173) |
 | `make cli Q="..."` | Run the full pipeline once and print the script |
 | `make test` | Run the test suite (synthesizes real MP3s into `output/`) |
 | `make lint` | Run `ruff` linter across the source tree |
 | `make clean` | Remove `__pycache__` directories and generated MP3s |
+
+---
+
+## Web UI (AG-UI)
+
+A custom **Vite + React** front end talks to the pipeline over the
+[AG-UI protocol](https://docs.ag-ui.com) using `@ag-ui/client`. It streams
+per-stage progress (parse → research → write script → narrate), renders the
+two-host script, and plays the generated MP3 in the browser. You can also pick a
+**length** (short / medium / long) and **language** (English / German).
+
+```bash
+# Terminal 1 — start the AG-UI backend (FastAPI + uvicorn)
+make web
+
+# Terminal 2 — start the web UI
+cd frontend && npm install   # first time only
+make ui
+```
+
+Then open http://127.0.0.1:5173. The UI defaults to the backend at
+`http://127.0.0.1:8089`; override with `VITE_BACKEND_URL` (see
+`frontend/.env.example`).
+
+- **Backend** — `server.py` mounts the workflow at `POST /podcast` via
+  `add_agent_framework_fastapi_endpoint`, serves generated audio from `/audio`,
+  and exposes `/healthz`.
+- **Request shape** — the UI sends `{ "topic", "length", "language" }` as the
+  message content; the workflow's `parse` stage validates it into a
+  `PodcastRequest`. Plain-text messages still work and fall back to defaults.
 
 ---
 
@@ -80,18 +112,26 @@ make cli Q="What are the latest breakthroughs in quantum computing?"
 ```
 Podcaster/
 ├── main.py                        # Entrypoint  --server / --cli
+├── server.py                      # FastAPI AG-UI backend (make web)
 ├── Makefile
 ├── requirements.txt
 ├── .env.example                   # Copy to .env and fill in values
 ├── .vscode/
 │   ├── launch.json                # Debugger attach configs
 │   └── tasks.json                 # agentdev server + Agent Inspector tasks
+├── frontend/                      # Vite + React web UI (AG-UI client)
+│   ├── index.html
+│   └── src/
+│       ├── App.tsx                # Form, progress stepper, script + audio
+│       ├── api.ts                 # @ag-ui/client HttpAgent wiring
+│       └── types.ts
 ├── output/                        # Generated MP3 files land here
 ├── tests/
-│   └── test_narrator.py           # Integration tests → synthesize real MP3s
+│   ├── test_narrator.py           # Integration tests → synthesize real MP3s
+│   └── test_pipeline.py           # Unit tests (parse, length, language SSML)
 └── src/podcaster/
-    ├── models.py                  # Pydantic: ResearchBrief, PodcastScript
-    ├── config.py                  # Env settings + VOICE_PRESETS
+    ├── models.py                  # Pydantic: PodcastRequest, ResearchBrief, PodcastScript
+    ├── config.py                  # Env settings + VOICE_PRESETS + LANGUAGE_VOICES
     ├── workflow.py                # Graph Workflow (WorkflowBuilder) + make_workflow()
     └── agents/
         ├── researcher.py          # Agent + Foundry web-search tool

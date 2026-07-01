@@ -56,8 +56,11 @@ def _build_ssml(
     voice_male: str | None = None,
     voice_female: str | None = None,
 ) -> str:
-    male = voice_male or config.PODCAST_VOICE_MALE
-    female = voice_female or config.PODCAST_VOICE_FEMALE
+    xml_lang, default_male, default_female = config.LANGUAGE_VOICES.get(
+        script.language, config.LANGUAGE_VOICES["english"]
+    )
+    male = voice_male or default_male
+    female = voice_female or default_female
     voice_map = {
         config.HOST_MALE: male,
         config.HOST_FEMALE: female,
@@ -76,7 +79,7 @@ def _build_ssml(
         '<speak version="1.0"'
         ' xmlns="http://www.w3.org/2001/10/synthesis"'
         ' xmlns:mstts="http://www.w3.org/2001/mstts"'
-        ' xml:lang="en-US">'
+        f' xml:lang="{xml_lang}">'
         f"{turns_xml}\n</speak>"
     )
 

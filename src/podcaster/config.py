@@ -41,4 +41,16 @@ VOICE_PRESETS: dict[str, tuple[str, str]] = {
     "neural": ("en-US-AndrewNeural", "en-US-AvaNeural"),
 }
 
+# Per-language settings: SSML locale + (male_voice, female_voice) pair.
+# MAI-Voice-2 is English-only, so German falls back to multilingual neural voices.
+LANGUAGE_VOICES: dict[str, tuple[str, str, str]] = {
+    # language: (xml_lang, male_voice, female_voice)
+    "english": ("en-US", "en-US-Ethan:MAI-Voice-2", "en-US-Harper:MAI-Voice-2"),
+    "german": (
+        "de-DE",
+        "de-DE-FlorianMultilingualNeural",
+        "de-DE-SeraphinaMultilingualNeural",
+    ),
+}
+
 OUTPUT_DIR: str = "output"

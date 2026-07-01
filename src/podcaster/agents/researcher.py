@@ -7,7 +7,7 @@ from agent_framework import Agent
 from agent_framework.foundry import FoundryChatClient
 from azure.identity import AzureCliCredential
 
-from src.podcaster.models import ResearchBrief
+from src.podcaster.models import PodcastRequest, ResearchBrief
 
 _INSTRUCTIONS = """\
 You are a thorough research assistant. Given a research question or topic, use \
@@ -46,7 +46,7 @@ def _extract_json(text: str) -> str:
     return text
 
 
-async def run_researcher(question: str) -> ResearchBrief:
+async def run_researcher(request: PodcastRequest) -> ResearchBrief:
     # WebSearchTool is a MutableMapping, not a dict subclass; dict() converts it
     # to the plain {"type": "web_search"} dict that the agent framework expects.
     agent = Agent(
@@ -54,6 +54,10 @@ async def run_researcher(question: str) -> ResearchBrief:
         instructions=_INSTRUCTIONS,
         tools=[dict(FoundryChatClient.get_web_search_tool())],
     )
-    result = await agent.run(question)
+    result = await agent.run(request.topic)
     data = json.loads(_extract_json(result.text))
-    return ResearchBrief(**data)
+    return ResearchBrief(
+        **data,
+        language=request.language,
+        length=request.length,
+    )
