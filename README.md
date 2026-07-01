@@ -2,23 +2,12 @@
 
 A multi-agent pipeline that turns a research question into a ready-to-play podcast MP3.
 
-```
-Research question
-      │
-      ▼
-┌─────────────┐     web search      ┌──────────────┐
-│  Researcher │ ──────────────────► │ Scriptwriter │
-│   (Agent)   │   ResearchBrief     │   (Agent)    │
-└─────────────┘                     └──────────────┘
-                                           │  PodcastScript
-                                           ▼
-                                    ┌──────────────┐
-                                    │   Narrator   │
-                                    │ (MAI-Voice-2)│
-                                    └──────────────┘
-                                           │
-                                           ▼
-                                    output/podcast.mp3
+```mermaid
+flowchart TD
+    Q[Research question] --> R[Researcher<br/>Agent]
+    R -- "web search<br/>ResearchBrief" --> S[Scriptwriter<br/>Agent]
+    S -- PodcastScript --> N[Narrator<br/>MAI-Voice-2]
+    N --> O[output/podcast.mp3]
 ```
 
 | Agent | Role |
@@ -84,6 +73,8 @@ A custom **Vite + React** front end talks to the pipeline over the
 per-stage progress (parse → research → write script → narrate), renders the
 two-host script, and plays the generated MP3 in the browser. You can also pick a
 **length** (short / medium / long) and **language** (English / German).
+
+![Podcaster web UI](https://github.com/user-attachments/assets/b77adcd7-b5b8-4565-80b1-e9e31c0850af)
 
 ```bash
 # Terminal 1 — start the AG-UI backend (FastAPI + uvicorn)
