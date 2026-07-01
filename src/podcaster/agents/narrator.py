@@ -58,19 +58,24 @@ _CUE_RE = re.compile(
     re.IGNORECASE,
 )
 
-# Per-style prosody applied to a whole turn. Prosody (rate/pitch/volume) is the
-# broadly supported, low-risk lever across voice families; unsupported values
-# are ignored rather than rejected. Each style maps to how that beat should sound.
+# Prosody fallback for voices that can't perform a native ``<mstts:express-as>``
+# style (standard neural voices, the German multilingual voices, and
+# ``en-US-Grant:MAI-Voice-2``). Prosody (rate/pitch/volume) is the broadly
+# supported, low-risk lever across voice families; unsupported values are
+# ignored rather than rejected. Keys match the MAI-native style names in
+# ``DELIVERY_STYLES`` so the same style renders natively on MAI voices and as a
+# rough approximation elsewhere.
 _STYLE_PROSODY: dict[str, str] = {
-    "cheerful": 'pitch="+4%"',
+    "happy": 'pitch="+4%"',
     "excited": 'rate="+7%" pitch="+7%"',
-    "amused": 'pitch="+4%" rate="+3%"',
-    "curious": 'pitch="+5%"',
-    "thoughtful": 'rate="-5%"',
-    "serious": 'rate="-4%" pitch="-3%"',
-    "empathetic": 'rate="-3%" pitch="-2%"',
-    "surprised": 'rate="+5%" pitch="+10%"',
+    "hopeful": 'pitch="+3%"',
+    "joyful": 'pitch="+5%" rate="+3%"',
+    "relieved": 'rate="-3%"',
+    "determined": 'rate="+2%" pitch="-2%"',
+    "confused": 'pitch="+3%" rate="-3%"',
+    "sad": 'rate="-5%" pitch="-4%"',
     "whispering": 'volume="x-soft" rate="-3%"',
+    "softvoice": 'volume="soft"',
 }
 
 
@@ -139,12 +144,23 @@ def _render_cues(text: str, performs_cues: bool) -> str:
     return "".join(parts).strip()
 
 
-def _render_turn(turn: DialogueTurn, performs_cues: bool) -> str:
-    """Render a single turn's text (cues + delivery style) to SSML markup."""
+def _render_turn(turn: DialogueTurn, voice: str, performs_cues: bool) -> str:
+    """Render a single turn's text (cues + delivery style) to SSML markup.
+
+    When ``voice`` natively supports the turn's delivery style (the MAI-Voice-2
+    hosts), it is wrapped in ``<mstts:express-as>`` so the model performs the
+    emotion. Otherwise the style is approximated with ``<prosody>``; ``neutral``
+    and unknown styles emit no wrapper.
+    """
     body = _render_cues(turn.text, performs_cues)
-    prosody = _STYLE_PROSODY.get(turn.style)
+    style = turn.style
+    if not style or style == "neutral":
+        return body
+    if style in config.voice_supported_styles(voice):
+        return f'<mstts:express-as style="{style}">{body}</mstts:express-as>'
+    prosody = _STYLE_PROSODY.get(style)
     if prosody:
-        body = f'<prosody {prosody}>{body}</prosody>'
+        return f'<prosody {prosody}>{body}</prosody>'
     return body
 
 
@@ -161,7 +177,7 @@ def _build_ssml_for_turns(
     turns_xml = ""
     for turn in turns:
         voice = voice_map.get(turn.speaker, male)
-        body = _render_turn(turn, config.voice_performs_cues(voice))
+        body = _render_turn(turn, voice, config.voice_performs_cues(voice))
         turns_xml += (
             f'\n  <voice name="{voice}">'
             f"\n    {body}"

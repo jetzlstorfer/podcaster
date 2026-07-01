@@ -63,6 +63,59 @@ LANGUAGE_VOICES: dict[str, tuple[str, str, str]] = {
     ),
 }
 
+# Native emotional styles each MAI-Voice-2 voice supports via
+# ``<mstts:express-as>``. This is a fixed, per-voice enumeration: passing a
+# style a voice does not support makes the Speech service drop the whole element
+# (the line renders neutral), so the narrator validates against these sets
+# before emitting a style tag. Voices absent from this map — standard neural
+# voices, the German multilingual voices, and ``en-US-Grant:MAI-Voice-2`` (which
+# ships no styles) — get an empty set and fall back to prosody/neutral.
+_MAI_FULL_STYLES: frozenset[str] = frozenset(
+    {
+        "angry",
+        "confused",
+        "determined",
+        "disgusted",
+        "embarrassed",
+        "excited",
+        "fearful",
+        "happy",
+        "hopeful",
+        "jealous",
+        "joyful",
+        "regretful",
+        "relieved",
+        "sad",
+        "shouting",
+        "softvoice",
+        "surprised",
+        "whispering",
+    }
+)
+# Harper supports the full set minus these four.
+_MAI_HARPER_STYLES: frozenset[str] = _MAI_FULL_STYLES - {
+    "disgusted",
+    "fearful",
+    "jealous",
+    "surprised",
+}
+VOICE_STYLE_SUPPORT: dict[str, frozenset[str]] = {
+    "en-us-ethan:mai-voice-2": _MAI_FULL_STYLES,
+    "en-us-olivia:mai-voice-2": _MAI_FULL_STYLES,
+    "en-us-harper:mai-voice-2": _MAI_HARPER_STYLES,
+}
+
+
+def voice_supported_styles(voice: str) -> frozenset[str]:
+    """Native ``<mstts:express-as>`` styles supported by ``voice``.
+
+    Returns an empty set for any voice without a documented style list — the
+    standard neural voices, the German multilingual voices, and
+    ``en-US-Grant:MAI-Voice-2`` — which then fall back to prosody or neutral.
+    """
+    return VOICE_STYLE_SUPPORT.get(voice.lower(), frozenset())
+
+
 OUTPUT_DIR: str = "output"
 
 # Observability / logging

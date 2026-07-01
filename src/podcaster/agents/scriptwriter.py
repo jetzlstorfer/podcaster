@@ -65,7 +65,7 @@ You have two tools to shape the delivery:
 1. A "style" on each turn — how the WHOLE line is delivered. Choose one of: \
 {styles}. Use "neutral" for most lines; reach for the others only when the \
 content genuinely calls for it (e.g. "excited" for a stunning stat, \
-"thoughtful" for a tricky nuance, "whispering" for a conspiratorial aside).
+"hopeful" for an optimistic turn, "whispering" for a conspiratorial aside).
 
 2. Inline performance cues written INSIDE the text, in square brackets, exactly \
 where they happen: {cues}. For example: \
@@ -76,8 +76,8 @@ Respond with a single JSON object — no markdown, no extra text:
 {{
   "title": "<short episode title>",
   "turns": [
-    {{"speaker": "Alex",   "style": "cheerful", "text": "..."}},
-    {{"speaker": "Jordan", "style": "neutral",  "text": "... [laughs] ..."}}
+    {{"speaker": "Alex",   "style": "happy",   "text": "..."}},
+    {{"speaker": "Jordan", "style": "neutral", "text": "... [laughs] ..."}}
   ]
 }}
 """

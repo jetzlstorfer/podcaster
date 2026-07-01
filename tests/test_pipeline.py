@@ -180,15 +180,39 @@ def test_inline_cue_stripped_to_break_for_neural_voice():
     assert "<break" in ssml
 
 
-def test_style_applies_prosody():
+def test_style_uses_express_as_for_mai_voice():
+    """A native MAI emotion renders via <mstts:express-as> on the MAI hosts."""
     ssml = _build_ssml(_mai_script("This is huge news.", style="excited"))
+    assert '<mstts:express-as style="excited">' in ssml
+    assert "<prosody" not in ssml
+
+
+def test_style_falls_back_to_prosody_for_neural_voice():
+    """Voices without native style support approximate the emotion with prosody."""
+    from src.podcaster.agents.narrator import _build_ssml_for_turns
+
+    turns = [DialogueTurn(speaker="Alex", text="This is huge news.", style="excited")]
+    ssml = _build_ssml_for_turns(turns, "en-US", "en-US-AndrewNeural", "en-US-AvaNeural")
     assert "<prosody" in ssml
-    assert 'rate="+7%"' in ssml
+    assert "express-as" not in ssml
 
 
-def test_neutral_style_has_no_prosody():
+def test_style_falls_back_for_mai_voice_without_styles():
+    """en-US-Grant:MAI-Voice-2 ships no styles, so it must not emit express-as."""
+    from src.podcaster.agents.narrator import _build_ssml_for_turns
+
+    turns = [DialogueTurn(speaker="Alex", text="This is huge news.", style="excited")]
+    ssml = _build_ssml_for_turns(
+        turns, "en-US", "en-US-Grant:MAI-Voice-2", "en-US-Olivia:MAI-Voice-2"
+    )
+    assert "express-as" not in ssml
+    assert "<prosody" in ssml
+
+
+def test_neutral_style_has_no_style_markup():
     ssml = _build_ssml(_mai_script("Just a normal line."))
     assert "<prosody" not in ssml
+    assert "express-as" not in ssml
 
 
 def test_cue_text_is_escaped():

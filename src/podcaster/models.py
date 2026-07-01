@@ -88,19 +88,23 @@ class ResearchBrief(BaseModel):
 
 
 # Delivery styles the scriptwriter may attach to a turn to shape how it is
-# performed. "neutral" is the default; the narrator maps each style to prosody
-# (rate/pitch/volume) so the audio matches the emotional beat of the dialogue.
+# performed. These are native MAI-Voice-2 emotion names, so the narrator can
+# render them directly via ``<mstts:express-as>`` on the MAI hosts. The set is
+# the intersection supported by both default hosts (Ethan and Harper), so either
+# speaker can use any of them; "neutral" is the default and emits no style tag.
+# For non-MAI voices the narrator approximates each with prosody.
 DELIVERY_STYLES: tuple[str, ...] = (
     "neutral",
-    "cheerful",
+    "happy",
     "excited",
-    "amused",
-    "curious",
-    "thoughtful",
-    "serious",
-    "empathetic",
-    "surprised",
+    "hopeful",
+    "joyful",
+    "relieved",
+    "determined",
+    "confused",
+    "sad",
     "whispering",
+    "softvoice",
 )
 
 

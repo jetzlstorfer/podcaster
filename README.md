@@ -199,9 +199,12 @@ az role assignment create \
 
 Leave `AZURE_SPEECH_KEY` blank to keep using keyless Entra ID auth.
 
-> **Note on voice styles:** MAI-Voice-2 voices auto-adapt tone and only support a
-> fixed set of `mstts:express-as` styles (e.g. `happy`, `excited`, `sad`) — not
-> `friendly`. The Narrator sends plain SSML and lets the model handle prosody.
+> **Note on voice styles:** each turn carries a delivery *style* drawn from the
+> emotions MAI-Voice-2 supports natively (e.g. `happy`, `excited`, `sad`,
+> `whispering`). For the MAI hosts the Narrator renders these with
+> `mstts:express-as` so the model performs the emotion; voices without native
+> style support (standard neural voices, `en-US-Grant:MAI-Voice-2`) fall back to
+> a `prosody` approximation, and `neutral` emits no style tag.
 
 ---
 
