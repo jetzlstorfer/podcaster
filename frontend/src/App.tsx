@@ -84,9 +84,9 @@ export default function App(): JSX.Element {
               disabled={isRunning}
               onChange={(e) => setLength(e.target.value as Length)}
             >
-              <option value="short">Short</option>
-              <option value="medium">Medium</option>
-              <option value="long">Long</option>
+              <option value="short">Short (~5 min)</option>
+              <option value="medium">Medium (~10 min)</option>
+              <option value="long">Long (~30 min) 💎 Premium Feature</option>
             </select>
           </label>
 
@@ -98,7 +98,7 @@ export default function App(): JSX.Element {
               onChange={(e) => setLanguage(e.target.value as Language)}
             >
               <option value="english">English</option>
-              <option value="german">German</option>
+              <option value="german">German (work in progress) 💎 Premium Feature</option>
             </select>
           </label>
         </div>
