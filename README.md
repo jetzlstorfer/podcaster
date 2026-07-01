@@ -2,23 +2,12 @@
 
 A multi-agent pipeline that turns a research question into a ready-to-play podcast MP3.
 
-```
-Research question
-      │
-      ▼
-┌─────────────┐     web search      ┌──────────────┐
-│  Researcher │ ──────────────────► │ Scriptwriter │
-│   (Agent)   │   ResearchBrief     │   (Agent)    │
-└─────────────┘                     └──────────────┘
-                                           │  PodcastScript
-                                           ▼
-                                    ┌──────────────┐
-                                    │   Narrator   │
-                                    │ (MAI-Voice-2)│
-                                    └──────────────┘
-                                           │
-                                           ▼
-                                    output/podcast.mp3
+```mermaid
+flowchart TD
+    Q[Research question] --> R["Researcher<br/>(Agent)"]
+    R -- "ResearchBrief<br/>(web search)" --> S["Scriptwriter<br/>(Agent)"]
+    S -- "PodcastScript" --> N["Narrator<br/>(MAI-Voice-2)"]
+    N --> MP3[output/podcast.mp3]
 ```
 
 | Agent | Role |
