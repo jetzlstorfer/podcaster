@@ -64,3 +64,37 @@ LANGUAGE_VOICES: dict[str, tuple[str, str, str]] = {
 }
 
 OUTPUT_DIR: str = "output"
+
+# Observability / logging
+# ``LOG_LEVEL`` controls the app's console logging (DEBUG/INFO/WARNING/…).
+LOG_LEVEL: str = os.environ.get("LOG_LEVEL", "INFO").upper()
+# Turn on OpenTelemetry instrumentation from the Microsoft Agent Framework
+# (traces + metrics + logs for every agent/chat/workflow step). Off by default.
+ENABLE_OTEL: bool = os.environ.get("ENABLE_OTEL", "false").lower() == "true"
+# Print OTel spans/metrics to the console (handy for local debugging with no
+# collector). Where the spans/metrics/logs are exported is otherwise driven by
+# the standard ``OTEL_EXPORTER_OTLP_*`` environment variables.
+OTEL_CONSOLE: bool = os.environ.get("ENABLE_CONSOLE_EXPORTERS", "false").lower() == "true"
+# Emit OTel to the AI Toolkit / Azure AI Foundry VS Code extension when set.
+_vscode_port = os.environ.get("VS_CODE_EXTENSION_PORT", "")
+VS_CODE_EXTENSION_PORT: int | None = int(_vscode_port) if _vscode_port.isdigit() else None
+# Optional Azure Monitor / Application Insights connection string. When set (and
+# ``azure-monitor-opentelemetry`` is installed) telemetry is also sent there.
+APPLICATIONINSIGHTS_CONNECTION_STRING: str = os.environ.get(
+    "APPLICATIONINSIGHTS_CONNECTION_STRING", ""
+)
+
+
+def voice_performs_cues(voice: str) -> bool:
+    """Whether a voice natively performs inline non-verbal cues in the text.
+
+    Currently always ``False``. The ``cognitiveservices/v1`` REST endpoint does
+    not accept verbatim bracketed cues (e.g. ``[gasps]``, ``[laughs]``) in the
+    SSML text: MAI-Voice-2's upstream rejects them with an HTTP 502 "protocol
+    error", and when such a cue sits inside a larger multi-turn request the whole
+    synthesis stalls until the client read-timeout. So for every voice the
+    narrator converts cues to short ``<break>`` pauses (see ``_render_cues``)
+    rather than passing them through, which keeps the cue word from being read
+    aloud and avoids the upstream failure.
+    """
+    return False

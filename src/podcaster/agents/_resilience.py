@@ -14,6 +14,7 @@ keeps failing.
 from __future__ import annotations
 
 import asyncio
+import logging
 import random
 from collections.abc import Awaitable, Callable
 from typing import Any
@@ -22,6 +23,8 @@ from agent_framework import Agent
 from azure.identity import AzureCliCredential
 
 from src.podcaster import config
+
+logger = logging.getLogger(__name__)
 
 try:  # FoundryChatClient is only importable when the agent framework is installed.
     from agent_framework.foundry import FoundryChatClient
@@ -35,6 +38,12 @@ _BASE_DELAY = 2.0
 _MAX_DELAY = 30.0
 
 _RATE_LIMIT_MARKERS = ("rate_limit", "rate limit", "429", "too many requests")
+
+# The Foundry Responses API intermittently rejects an otherwise-valid request
+# with a 400 ``invalid_payload`` (empty ``details``, just a request id). These
+# are transient server-side hiccups that clear on retry, so we treat them like
+# rate limits and back off rather than failing the whole workflow.
+_TRANSIENT_BAD_REQUEST_MARKERS = ("invalid_payload", "invalid request payload")
 
 # A builder receives (model, project_endpoint) — ``None`` means "use the
 # env-configured primary" — and returns a ready-to-run Agent.
@@ -68,6 +77,16 @@ def _is_rate_limit(exc: BaseException) -> bool:
     return False
 
 
+def _is_transient_bad_request(exc: BaseException) -> bool:
+    """Detect the Foundry ``invalid_payload`` 400s that clear on retry."""
+    message = str(exc).lower()
+    return any(marker in message for marker in _TRANSIENT_BAD_REQUEST_MARKERS)
+
+
+def _should_retry(exc: BaseException) -> bool:
+    return _is_rate_limit(exc) or _is_transient_bad_request(exc)
+
+
 def _retry_after_seconds(exc: BaseException) -> float | None:
     """Best-effort extraction of the ``Retry-After`` header from the error chain."""
     seen: set[int] = set()
@@ -94,10 +113,11 @@ async def run_agent_resilient(
     max_attempts: int = _MAX_ATTEMPTS,
     sleep: Callable[[float], Awaitable[None]] = asyncio.sleep,
 ) -> Any:
-    """Run ``agent.run(prompt)`` with backoff on 429s, then fail over.
+    """Run ``agent.run(prompt)`` with backoff on retryable errors, then fail over.
 
-    ``build_agent(model, endpoint)`` builds the agent; ``None`` selects the
-    env-configured primary. Non-rate-limit errors are raised immediately.
+    Retryable = rate limits (429) and the Foundry transient ``invalid_payload``
+    400s. ``build_agent(model, endpoint)`` builds the agent; ``None`` selects the
+    env-configured primary. Other errors are raised immediately.
     """
     has_fallback = bool(
         config.FOUNDRY_MODEL_FALLBACK or config.FOUNDRY_PROJECT_ENDPOINT_FALLBACK
@@ -111,13 +131,32 @@ async def run_agent_resilient(
             config.FOUNDRY_PROJECT_ENDPOINT_FALLBACK or None if use_fallback else None
         )
         agent = build_agent(model, endpoint)
+        if use_fallback:
+            logger.warning(
+                "Retry %d/%d using fallback deployment (model=%s endpoint=%s)",
+                attempt,
+                max_attempts,
+                model or "<primary>",
+                endpoint or "<primary>",
+            )
         try:
             return await agent.run(prompt)
-        except Exception as exc:  # noqa: BLE001 - re-raised unless it's a rate limit
-            if not _is_rate_limit(exc) or attempt == max_attempts:
+        except Exception as exc:  # noqa: BLE001 - re-raised unless it's retryable
+            if not _should_retry(exc) or attempt == max_attempts:
+                if attempt == max_attempts:
+                    logger.error("Giving up after %d attempts: %s", attempt, exc)
                 raise
             wait = _retry_after_seconds(exc)
             if wait is None:
                 wait = delay
                 delay = min(delay * 2, _MAX_DELAY)
-            await sleep(wait + random.uniform(0, 0.5))
+            reason = "rate limit" if _is_rate_limit(exc) else "transient invalid_payload"
+            total_wait = wait + random.uniform(0, 0.5)
+            logger.warning(
+                "Attempt %d/%d failed (%s); retrying in %.1fs",
+                attempt,
+                max_attempts,
+                reason,
+                total_wait,
+            )
+            await sleep(total_wait)

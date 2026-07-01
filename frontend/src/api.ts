@@ -1,6 +1,6 @@
 import { HttpAgent } from "@ag-ui/client";
 
-import { PodcastRequest, PodcastResult, Stage } from "./types";
+import { PodcastRequest, PodcastResult, STAGES, Stage } from "./types";
 
 const BACKEND_URL: string =
   (import.meta.env.VITE_BACKEND_URL as string | undefined) ??
@@ -81,10 +81,13 @@ export async function runPodcast(
       {},
       {
         onStepStartedEvent: ({ event }) => {
-          const stage = (event as { stepName?: string }).stepName as
-            | Stage
-            | undefined;
-          if (stage) callbacks.onStage?.(stage);
+          // The workflow emits STEP_STARTED for inner steps too (e.g. the
+          // scriptwriter agent), whose names aren't pipeline stages. Ignore
+          // those so an unknown name never blanks the progress indicator.
+          const name = (event as { stepName?: string }).stepName;
+          if (name && (STAGES as readonly string[]).includes(name)) {
+            callbacks.onStage?.(name as Stage);
+          }
         },
         onCustomEvent: ({ event }) => capture(event),
         onRunFinishedEvent: ({ event, result }) => {

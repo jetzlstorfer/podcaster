@@ -84,6 +84,18 @@ def test_is_rate_limit_detects_429():
     assert not _is_rate_limit(Exception("some other failure"))
 
 
+def test_transient_invalid_payload_is_retryable():
+    from src.podcaster.agents._resilience import _is_transient_bad_request, _should_retry
+
+    err = Exception(
+        "Error code: 400 - {'error': {'code': 'invalid_payload', "
+        "'message': 'Invalid request payload.'}}"
+    )
+    assert _is_transient_bad_request(err)
+    assert _should_retry(err)
+    assert not _is_transient_bad_request(Exception("some other failure"))
+
+
 def test_run_agent_resilient_retries_then_succeeds():
     import asyncio
 
@@ -136,3 +148,51 @@ def test_run_agent_resilient_reraises_non_rate_limit():
         assert "bad request" in str(exc)
     else:
         raise AssertionError("expected ValueError to propagate")
+
+
+def _mai_script(text: str, style: str = "neutral") -> PodcastScript:
+    return PodcastScript(
+        title="T",
+        turns=[DialogueTurn(speaker="Alex", text=text, style=style)],
+        language="english",
+    )
+
+
+def test_inline_cue_stripped_to_break_for_mai_voice():
+    """Bracketed cues must never be sent verbatim.
+
+    The ``cognitiveservices/v1`` REST endpoint rejects verbatim cues (e.g.
+    ``[laughs]``) for MAI-Voice-2 with an upstream 502, which stalls the whole
+    request, so the narrator converts every cue to a short ``<break>`` pause.
+    """
+    ssml = _build_ssml(_mai_script("That's wild! [laughs] Amazing."))
+    assert "[laughs]" not in ssml
+    assert "<break" in ssml
+
+
+def test_inline_cue_stripped_to_break_for_neural_voice():
+    """Voices that can't perform cues get a pause instead of the cue word."""
+    from src.podcaster.agents.narrator import _build_ssml_for_turns
+
+    turns = [DialogueTurn(speaker="Alex", text="Wow. [laughs] Okay.")]
+    ssml = _build_ssml_for_turns(turns, "en-US", "en-US-AndrewNeural", "en-US-AvaNeural")
+    assert "[laughs]" not in ssml
+    assert "<break" in ssml
+
+
+def test_style_applies_prosody():
+    ssml = _build_ssml(_mai_script("This is huge news.", style="excited"))
+    assert "<prosody" in ssml
+    assert 'rate="+7%"' in ssml
+
+
+def test_neutral_style_has_no_prosody():
+    ssml = _build_ssml(_mai_script("Just a normal line."))
+    assert "<prosody" not in ssml
+
+
+def test_cue_text_is_escaped():
+    """Ampersands in dialogue must be XML-escaped even alongside cues."""
+    ssml = _build_ssml(_mai_script("Bread & butter [laughs] classics."))
+    assert "&amp;" in ssml
+    assert "Bread & butter" not in ssml

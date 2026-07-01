@@ -87,9 +87,29 @@ class ResearchBrief(BaseModel):
     length: Length = "medium"
 
 
+# Delivery styles the scriptwriter may attach to a turn to shape how it is
+# performed. "neutral" is the default; the narrator maps each style to prosody
+# (rate/pitch/volume) so the audio matches the emotional beat of the dialogue.
+DELIVERY_STYLES: tuple[str, ...] = (
+    "neutral",
+    "cheerful",
+    "excited",
+    "amused",
+    "curious",
+    "thoughtful",
+    "serious",
+    "empathetic",
+    "surprised",
+    "whispering",
+)
+
+
 class DialogueTurn(BaseModel):
     speaker: Literal["Alex", "Jordan"]
     text: str
+    # How the line is delivered (see ``DELIVERY_STYLES``). Free-form so an
+    # unexpected value never breaks parsing; the narrator falls back to neutral.
+    style: str = "neutral"
 
 
 class PodcastScript(BaseModel):

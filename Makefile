@@ -4,6 +4,7 @@ PYTHON  := python
 PORT    := 8088
 WEB_PORT := 8089
 Q       ?= What are the latest breakthroughs in quantum computing?
+SCRIPT  ?=
 
 ## Install Python dependencies
 install:
@@ -23,8 +24,9 @@ ui:
 
 ## Run the full pipeline once from the CLI
 ## Usage: make cli Q="Your research question here"
+##    or: make cli SCRIPT=output/My_Title.json   (narrate a saved script only)
 cli:
-	$(PYTHON) main.py --cli --question "$(Q)"
+	$(PYTHON) main.py --cli $(if $(SCRIPT),--script "$(SCRIPT)",--question "$(Q)")
 
 ## Lint with ruff (install separately: pip install ruff)
 lint:

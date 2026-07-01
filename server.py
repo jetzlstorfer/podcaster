@@ -24,9 +24,14 @@ from fastapi.staticfiles import StaticFiles
 from starlette.responses import StreamingResponse
 
 from src.podcaster import config
+from src.podcaster.observability import setup_observability
 from src.podcaster.workflow import make_workflow
 
 load_dotenv(override=False)
+
+# Configure logging + optional OpenTelemetry as early as possible so startup and
+# every request is traced.
+setup_observability()
 
 # AG-UI event types the workflow adapter emits that the @ag-ui/client SSE parser
 # doesn't recognise (agent-framework extensions). We drop them so the browser

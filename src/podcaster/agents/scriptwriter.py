@@ -1,12 +1,15 @@
 from __future__ import annotations
 
 import json
+import logging
 import re
 
 from agent_framework import Agent
 
 from src.podcaster.agents._resilience import make_foundry_client, run_agent_resilient
+from src.podcaster.agents.narrator import INLINE_CUES
 from src.podcaster.models import (
+    DELIVERY_STYLES,
     DialogueTurn,
     Language,
     Length,
@@ -14,6 +17,8 @@ from src.podcaster.models import (
     ResearchBrief,
     length_spec,
 )
+
+logger = logging.getLogger(__name__)
 
 _LANGUAGE_NAMES: dict[str, str] = {
     "english": "English",
@@ -49,12 +54,30 @@ Guidelines:
 time, with the hosts digging into examples, data, and differing perspectives
 - Make it engaging and accessible to a curious general audience
 
+Make it sound HUMAN and immersive. The hosts are real people reacting in real \
+time, so let them:
+- React emotionally — laugh at something surprising, express awe, hesitate, \
+build on each other's energy
+- Use natural interjections ("Oh, wow", "Right", "Ha, exactly", "Hmm")
+
+You have two tools to shape the delivery:
+
+1. A "style" on each turn — how the WHOLE line is delivered. Choose one of: \
+{styles}. Use "neutral" for most lines; reach for the others only when the \
+content genuinely calls for it (e.g. "excited" for a stunning stat, \
+"thoughtful" for a tricky nuance, "whispering" for a conspiratorial aside).
+
+2. Inline performance cues written INSIDE the text, in square brackets, exactly \
+where they happen: {cues}. For example: \
+"Wait — it doubled in a year? [laughs] That's insane." Use them sparingly and \
+only when they fit the moment; never stack them or start every line with one.
+
 Respond with a single JSON object — no markdown, no extra text:
 {{
   "title": "<short episode title>",
   "turns": [
-    {{"speaker": "Alex",   "text": "..."}},
-    {{"speaker": "Jordan", "text": "..."}}
+    {{"speaker": "Alex",   "style": "cheerful", "text": "..."}},
+    {{"speaker": "Jordan", "style": "neutral",  "text": "... [laughs] ..."}}
   ]
 }}
 """
@@ -67,6 +90,8 @@ def _build_instructions(language: Language, length: Length) -> str:
         minutes=spec.minutes,
         words=spec.words,
         turn_target=spec.turns,
+        styles=", ".join(f'"{s}"' for s in DELIVERY_STYLES),
+        cues=", ".join(f"[{c}]" for c in INLINE_CUES),
     )
 
 
@@ -105,6 +130,11 @@ async def run_scriptwriter(brief: ResearchBrief) -> PodcastScript:
         )
 
     result = await run_agent_resilient(build, _build_prompt(brief))
-    data = json.loads(_extract_json(result.text))
+    logger.debug("Scriptwriter raw response: %d chars", len(result.text or ""))
+    try:
+        data = json.loads(_extract_json(result.text))
+    except json.JSONDecodeError:
+        logger.exception("Failed to parse scriptwriter JSON response")
+        raise
     turns = [DialogueTurn(**t) for t in data["turns"]]
     return PodcastScript(title=data["title"], turns=turns, language=brief.language)

@@ -10,6 +10,7 @@ export interface PodcastRequest {
 export interface ScriptTurn {
   speaker: string;
   text: string;
+  style?: string;
 }
 
 export interface PodcastResult {

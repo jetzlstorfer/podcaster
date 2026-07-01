@@ -12,6 +12,8 @@ of stalling until the whole pipeline completes.
 from __future__ import annotations
 
 import json
+import logging
+import time
 from pathlib import Path
 from typing import Any
 
@@ -24,10 +26,13 @@ from agent_framework import (
 )
 from typing_extensions import Never
 
-from src.podcaster.agents.narrator import run_narrator
+from src.podcaster import config
+from src.podcaster.agents.narrator import _safe_filename, run_narrator
 from src.podcaster.agents.researcher import run_researcher
 from src.podcaster.agents.scriptwriter import run_scriptwriter
 from src.podcaster.models import PodcastRequest, PodcastScript, ResearchBrief
+
+logger = logging.getLogger(__name__)
 
 
 class ParseRequestExecutor(Executor):
@@ -57,7 +62,20 @@ class ResearchExecutor(Executor):
 
     @handler
     async def run(self, request: PodcastRequest, ctx: WorkflowContext[ResearchBrief]) -> None:
+        logger.info(
+            "[research] start topic=%r length=%s language=%s",
+            request.topic,
+            request.length,
+            request.language,
+        )
+        started = time.perf_counter()
         brief = await run_researcher(request)
+        logger.info(
+            "[research] done in %.1fs — %d key facts, %d sources",
+            time.perf_counter() - started,
+            len(brief.key_facts),
+            len(brief.sources),
+        )
         await ctx.send_message(brief)
 
 
@@ -66,7 +84,17 @@ class ScriptExecutor(Executor):
 
     @handler
     async def run(self, brief: ResearchBrief, ctx: WorkflowContext[PodcastScript]) -> None:
+        logger.info("[write_script] start topic=%r length=%s", brief.topic, brief.length)
+        started = time.perf_counter()
         script = await run_scriptwriter(brief)
+        script_path = _save_script(script)
+        logger.info(
+            "[write_script] done in %.1fs — %r, %d turns (saved to %s)",
+            time.perf_counter() - started,
+            script.title,
+            len(script.turns),
+            script_path,
+        )
         await ctx.send_message(script)
 
 
@@ -79,22 +107,44 @@ class NarrateExecutor(Executor):
         script: PodcastScript,
         ctx: WorkflowContext[Never, dict[str, Any]],
     ) -> None:
+        logger.info("[narrate] start — synthesizing %d turns", len(script.turns))
+        started = time.perf_counter()
         try:
             path = await run_narrator(script)
             # Served by the FastAPI static mount at /audio.
             audio = f"/audio/{Path(path).name}"
+            logger.info(
+                "[narrate] done in %.1fs — %s", time.perf_counter() - started, audio
+            )
         except RuntimeError as exc:
             # Audio step is optional while the Speech resource isn't provisioned.
             audio = f"[Audio skipped: {exc}]"
+            logger.warning("[narrate] skipped after %.1fs: %s", time.perf_counter() - started, exc)
         await ctx.yield_output(
             {
                 "title": script.title,
                 "turns": len(script.turns),
                 "language": script.language,
                 "audio": audio,
-                "script": [{"speaker": t.speaker, "text": t.text} for t in script.turns],
+                "script": [
+                    {"speaker": t.speaker, "text": t.text, "style": t.style}
+                    for t in script.turns
+                ],
             }
         )
+
+
+def _save_script(script: PodcastScript) -> Path:
+    """Persist the generated script to ``output/<title>.json``.
+
+    The filename matches the narrator's MP3 naming so the script and its audio
+    pair up, and the JSON can be replayed later via ``main.py --script``.
+    """
+    out_dir = Path(config.OUTPUT_DIR)
+    out_dir.mkdir(parents=True, exist_ok=True)
+    path = out_dir / f"{_safe_filename(script.title)}.json"
+    path.write_text(script.model_dump_json(indent=2), encoding="utf-8")
+    return path
 
 
 def _parse_request(message: str) -> PodcastRequest:

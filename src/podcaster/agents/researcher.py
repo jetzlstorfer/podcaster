@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import logging
 import re
 
 from agent_framework import Agent
@@ -8,6 +9,8 @@ from agent_framework.foundry import FoundryChatClient
 
 from src.podcaster.agents._resilience import make_foundry_client, run_agent_resilient
 from src.podcaster.models import PodcastRequest, ResearchBrief, length_spec
+
+logger = logging.getLogger(__name__)
 
 _INSTRUCTIONS_TEMPLATE = """\
 You are a thorough research assistant. Given a research question or topic, use \
@@ -75,7 +78,12 @@ async def run_researcher(request: PodcastRequest) -> ResearchBrief:
         )
 
     result = await run_agent_resilient(build, request.topic)
-    data = json.loads(_extract_json(result.text))
+    logger.debug("Researcher raw response: %d chars", len(result.text or ""))
+    try:
+        data = json.loads(_extract_json(result.text))
+    except json.JSONDecodeError:
+        logger.exception("Failed to parse researcher JSON response")
+        raise
     return ResearchBrief(
         **data,
         language=request.language,

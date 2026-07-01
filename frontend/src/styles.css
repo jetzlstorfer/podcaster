@@ -227,3 +227,18 @@ select:focus {
 .turn-jordan {
   border-left-color: var(--accent-2);
 }
+
+/* Inline performance cue, e.g. "[laughs]", inside a turn's text. */
+.turn .cue {
+  color: var(--accent-2);
+  opacity: 0.7;
+  font-style: italic;
+}
+
+/* Delivery-style tag shown next to the speaker name (e.g. "excited"). */
+.turn .style-tag {
+  font-size: 0.7rem;
+  font-style: italic;
+  opacity: 0.6;
+  margin-left: 0.4rem;
+}

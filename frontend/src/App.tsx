@@ -12,6 +12,19 @@ import {
 
 type Status = "idle" | "running" | "done" | "error";
 
+/** Render a turn's text, styling inline performance cues like "[laughs]". */
+function renderTurnText(text: string): JSX.Element[] {
+  return text.split(/(\[[^\]]+\])/g).map((part, i) =>
+    /^\[[^\]]+\]$/.test(part) ? (
+      <em key={i} className="cue">
+        {part}
+      </em>
+    ) : (
+      <span key={i}>{part}</span>
+    ),
+  );
+}
+
 export default function App(): JSX.Element {
   const [topic, setTopic] = useState("");
   const [length, setLength] = useState<Length>("medium");
@@ -24,6 +37,9 @@ export default function App(): JSX.Element {
 
   const isRunning = status === "running";
   const activeIndex = activeStage ? STAGES.indexOf(activeStage) : -1;
+  // While running, never let an unknown/absent stage collapse the whole
+  // indicator: fall back to the first stage so a spinner always shows.
+  const currentIndex = isRunning && activeIndex < 0 ? 0 : activeIndex;
 
   const handleGenerate = async () => {
     if (!topic.trim() || isRunning) return;
@@ -120,9 +136,9 @@ export default function App(): JSX.Element {
               const state =
                 status === "done"
                   ? "done"
-                  : i < activeIndex
+                  : i < currentIndex
                     ? "done"
-                    : i === activeIndex
+                    : i === currentIndex
                       ? "active"
                       : "pending";
               return (
@@ -154,7 +170,10 @@ export default function App(): JSX.Element {
             {result.script.map((turn, i) => (
               <p key={i} className={`turn turn-${turn.speaker.toLowerCase()}`}>
                 <strong>{turn.speaker}</strong>
-                <span>{turn.text}</span>
+                {turn.style && turn.style !== "neutral" && (
+                  <em className="style-tag">{turn.style}</em>
+                )}
+                <span>{renderTurnText(turn.text)}</span>
               </p>
             ))}
           </div>

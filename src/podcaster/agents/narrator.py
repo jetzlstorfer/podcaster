@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import asyncio
 import html
+import logging
 import re
 import time
 from pathlib import Path
@@ -11,6 +13,8 @@ from azure.identity import AzureCliCredential, get_bearer_token_provider
 from src.podcaster import config
 from src.podcaster.models import DialogueTurn, PodcastScript
 
+logger = logging.getLogger(__name__)
+
 # Lazy token provider — created once per process.
 _token_provider = None
 
@@ -19,11 +23,55 @@ _token_provider = None
 _RETRY_STATUSES = {500, 502, 503, 504}
 _MAX_ATTEMPTS = 4
 
-# The Speech ``cognitiveservices/v1`` REST endpoint synthesizes at most ~10
-# minutes of audio per request (and caps SSML payload size). Long episodes must
-# be split into several requests and the MP3 output concatenated. At ~150
-# words/minute, 1200 words is roughly 8 minutes — a safe margin under the cap.
-_MAX_WORDS_PER_REQUEST = 1200
+# Per-request timeout (seconds). The endpoint buffers the whole clip before
+# responding, so this must comfortably exceed the render time of one chunk.
+_REQUEST_TIMEOUT = 180
+
+# The Speech ``cognitiveservices/v1`` REST endpoint buffers the *entire* clip
+# before responding, so a single large request can easily exceed the request
+# timeout while the server renders several minutes of audio (MAI-Voice-2 is
+# slow). Keeping each request small means every request returns well within
+# ``_REQUEST_TIMEOUT``; long episodes are split into several requests and the
+# MP3 output concatenated. At ~150 words/minute, 300 words is ~2 minutes of
+# audio — comfortably under the timeout even on a slow render.
+_MAX_WORDS_PER_REQUEST = 300
+
+
+# Inline non-verbal performance cues the scriptwriter may embed in a turn's
+# text, e.g. "That's wild! [laughs] I can't believe it." MAI-Voice-2 performs
+# these natively (they are passed through verbatim); voices that can't perform
+# them get a short pause instead, so the cue word is never read aloud. The value
+# is the pause (in ms) used for that fallback path.
+INLINE_CUES: dict[str, int] = {
+    "laughs": 350,
+    "chuckles": 300,
+    "sighs": 400,
+    "gasps": 300,
+    "whispers": 200,
+    "clears throat": 350,
+    "breath": 300,
+    "pause": 600,
+}
+
+_CUE_RE = re.compile(
+    r"\[\s*(" + "|".join(re.escape(c) for c in INLINE_CUES) + r")\s*\]",
+    re.IGNORECASE,
+)
+
+# Per-style prosody applied to a whole turn. Prosody (rate/pitch/volume) is the
+# broadly supported, low-risk lever across voice families; unsupported values
+# are ignored rather than rejected. Each style maps to how that beat should sound.
+_STYLE_PROSODY: dict[str, str] = {
+    "cheerful": 'pitch="+4%"',
+    "excited": 'rate="+7%" pitch="+7%"',
+    "amused": 'pitch="+4%" rate="+3%"',
+    "curious": 'pitch="+5%"',
+    "thoughtful": 'rate="-5%"',
+    "serious": 'rate="-4%" pitch="-3%"',
+    "empathetic": 'rate="-3%" pitch="-2%"',
+    "surprised": 'rate="+5%" pitch="+10%"',
+    "whispering": 'volume="x-soft" rate="-3%"',
+}
 
 
 def _get_token_provider():
@@ -70,6 +118,36 @@ def _build_ssml(
     return _build_ssml_for_turns(script.turns, xml_lang, male, female)
 
 
+def _render_cues(text: str, performs_cues: bool) -> str:
+    """Turn a line's inline ``[cue]`` markers into escaped SSML.
+
+    When ``performs_cues`` is True (MAI-Voice-2) the bracketed cue is kept in the
+    text so the model acts it out. Otherwise it is replaced with a short
+    ``<break>`` so the cue word is never spoken aloud.
+    """
+    parts: list[str] = []
+    last = 0
+    for m in _CUE_RE.finditer(text):
+        parts.append(html.escape(text[last : m.start()]))
+        cue = m.group(1).lower()
+        if performs_cues:
+            parts.append(html.escape(m.group(0)))
+        else:
+            parts.append(f'<break time="{INLINE_CUES.get(cue, 300)}ms"/>')
+        last = m.end()
+    parts.append(html.escape(text[last:]))
+    return "".join(parts).strip()
+
+
+def _render_turn(turn: DialogueTurn, performs_cues: bool) -> str:
+    """Render a single turn's text (cues + delivery style) to SSML markup."""
+    body = _render_cues(turn.text, performs_cues)
+    prosody = _STYLE_PROSODY.get(turn.style)
+    if prosody:
+        body = f'<prosody {prosody}>{body}</prosody>'
+    return body
+
+
 def _build_ssml_for_turns(
     turns: list[DialogueTurn],
     xml_lang: str,
@@ -83,10 +161,10 @@ def _build_ssml_for_turns(
     turns_xml = ""
     for turn in turns:
         voice = voice_map.get(turn.speaker, male)
-        escaped = html.escape(turn.text)
+        body = _render_turn(turn, config.voice_performs_cues(voice))
         turns_xml += (
             f'\n  <voice name="{voice}">'
-            f"\n    {escaped}"
+            f"\n    {body}"
             f'\n    <break time="400ms"/>'
             f"\n  </voice>"
         )
@@ -159,16 +237,29 @@ async def run_narrator(
     # The v1 endpoint caps a single request at ~10 minutes of audio, so long
     # episodes are synthesized in chunks and the MP3 audio concatenated.
     chunks = _chunk_turns(script.turns)
-    audio = b"".join(
-        _synthesize(url, _build_ssml_for_turns(turns, xml_lang, male, female))
-        for turns in chunks
+    logger.info(
+        "Synthesizing %d turns in %d request(s) (voices: %s / %s)",
+        len(script.turns),
+        len(chunks),
+        male,
+        female,
     )
+    # ``_synthesize`` uses the blocking ``requests`` library. Run each request in
+    # a worker thread so it never blocks the asyncio event loop — otherwise the
+    # whole process (including Ctrl+C handling and any concurrent work) freezes
+    # for the full duration of every synthesis request.
+    parts: list[bytes] = []
+    for turns in chunks:
+        ssml = _build_ssml_for_turns(turns, xml_lang, male, female)
+        parts.append(await asyncio.to_thread(_synthesize, url, ssml))
+    audio = b"".join(parts)
 
     out_dir = Path(config.OUTPUT_DIR)
     out_dir.mkdir(parents=True, exist_ok=True)
     filename = out_name or _safe_filename(script.title)
     out_path = out_dir / f"{filename}.mp3"
     out_path.write_bytes(audio)
+    logger.info("Wrote %d bytes of audio to %s", len(audio), out_path)
     return out_path
 
 
@@ -181,15 +272,28 @@ def _synthesize(url: str, ssml: str) -> bytes:
                 url,
                 headers=_headers(),
                 data=ssml.encode("utf-8"),
-                timeout=180,
+                timeout=_REQUEST_TIMEOUT,
             )
-        except requests.exceptions.ConnectionError:
+        except requests.exceptions.RequestException as exc:
             if attempt == _MAX_ATTEMPTS:
                 raise
+            logger.warning(
+                "Speech request %s (attempt %d/%d); retrying: %r",
+                type(exc).__name__,
+                attempt,
+                _MAX_ATTEMPTS,
+                exc,
+            )
             time.sleep(2 * attempt)
             continue
 
         if resp.status_code in _RETRY_STATUSES and attempt < _MAX_ATTEMPTS:
+            logger.warning(
+                "Speech request returned %d (attempt %d/%d); retrying",
+                resp.status_code,
+                attempt,
+                _MAX_ATTEMPTS,
+            )
             time.sleep(2 * attempt)
             continue
         break

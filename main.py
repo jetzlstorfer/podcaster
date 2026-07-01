@@ -4,7 +4,7 @@ Podcaster – entrypoint.
 Modes:
   --server   Run as devui HTTP server (Agent Inspector, port 8088)
   --cli      Run the pipeline once and print results
-             Requires --question "..."
+             Requires --question "...", or --script <path> to narrate only
 """
 
 from __future__ import annotations
@@ -12,6 +12,7 @@ from __future__ import annotations
 import argparse
 import asyncio
 import sys
+from pathlib import Path
 
 
 def _parse_args() -> argparse.Namespace:
@@ -24,6 +25,15 @@ def _parse_args() -> argparse.Namespace:
         type=str,
         default=None,
         help="Research question (required for --cli)",
+    )
+    parser.add_argument(
+        "--script",
+        type=str,
+        default=None,
+        help=(
+            "Path to a saved script JSON (from a previous run). Skips research "
+            "and scriptwriting and only runs the narrator."
+        ),
     )
     parser.add_argument(
         "--port",
@@ -71,14 +81,42 @@ async def _run_cli(question: str) -> None:
     print()
 
 
+async def _run_narrate_only(script_path: str) -> None:
+    from src.podcaster.agents.narrator import run_narrator
+    from src.podcaster.models import PodcastScript
+
+    path = Path(script_path)
+    if not path.is_file():
+        print(f"Error: script file not found: {path}", file=sys.stderr)
+        sys.exit(1)
+
+    print(f"\n[Podcaster] Narrating saved script: {path}\n")
+    script = PodcastScript.model_validate_json(path.read_text(encoding="utf-8"))
+    audio_path = await run_narrator(script)
+    print("\n" + "=" * 60)
+    print(f"Title : {script.title}")
+    print(f"Turns : {len(script.turns)}")
+    print(f"Audio : {audio_path}")
+    print("=" * 60)
+
+
 def main() -> None:
     args = _parse_args()
 
+    from src.podcaster.observability import setup_observability
+
+    setup_observability()
+
     if args.server:
         _run_server(args.port)
+    elif args.script:
+        asyncio.run(_run_narrate_only(args.script))
     else:
         if not args.question:
-            print("Error: --question is required when using --cli", file=sys.stderr)
+            print(
+                "Error: --question (or --script) is required when using --cli",
+                file=sys.stderr,
+            )
             sys.exit(1)
         asyncio.run(_run_cli(args.question))
 
