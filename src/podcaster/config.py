@@ -12,6 +12,16 @@ FOUNDRY_PROJECT_ENDPOINT: str = os.environ.get(
 )
 FOUNDRY_MODEL: str = os.environ.get("FOUNDRY_MODEL", "gpt-5-mini")
 
+# Optional failover deployment used when the primary model returns repeated
+# rate-limit (429) errors. For this to add real capacity it must have
+# *independent* quota — i.e. a deployment in a DIFFERENT region (set both the
+# fallback endpoint and model) or a separate resource. A second deployment in
+# the same region shares the same regional quota pool and won't help.
+FOUNDRY_MODEL_FALLBACK: str = os.environ.get("FOUNDRY_MODEL_FALLBACK", "")
+FOUNDRY_PROJECT_ENDPOINT_FALLBACK: str = os.environ.get(
+    "FOUNDRY_PROJECT_ENDPOINT_FALLBACK", ""
+)
+
 # MAI-Voice-2 (Azure Speech)
 AZURE_SPEECH_ENDPOINT: str = os.environ.get("AZURE_SPEECH_ENDPOINT", "")
 AZURE_SPEECH_KEY: str = os.environ.get("AZURE_SPEECH_KEY", "")
