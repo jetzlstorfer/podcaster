@@ -103,12 +103,16 @@ def test_run_agent_resilient_retries_then_succeeds():
 
     calls = {"n": 0}
 
+    class _FakeResult:
+        def __init__(self, text):
+            self.text = text
+
     class _FakeAgent:
         async def run(self, prompt):
             calls["n"] += 1
             if calls["n"] < 3:
                 raise Exception("Error code: 429 - rate_limit_exceeded")
-            return f"ok:{prompt}"
+            return _FakeResult(f"ok:{prompt}")
 
     async def _no_sleep(_seconds):
         return None
@@ -120,7 +124,39 @@ def test_run_agent_resilient_retries_then_succeeds():
             sleep=_no_sleep,
         )
     )
-    assert result == "ok:hello"
+    assert result.text == "ok:hello"
+    assert calls["n"] == 3
+
+
+def test_run_agent_resilient_retries_on_empty_response():
+    import asyncio
+
+    from src.podcaster.agents import _resilience
+
+    calls = {"n": 0}
+
+    class _FakeResult:
+        def __init__(self, text):
+            self.text = text
+
+    class _FakeAgent:
+        async def run(self, prompt):
+            calls["n"] += 1
+            # First two runs return an empty final message (reasoning-only),
+            # which should be retried rather than surfaced as invalid output.
+            return _FakeResult("" if calls["n"] < 3 else "done")
+
+    async def _no_sleep(_seconds):
+        return None
+
+    result = asyncio.run(
+        _resilience.run_agent_resilient(
+            lambda model, endpoint: _FakeAgent(),
+            "hello",
+            sleep=_no_sleep,
+        )
+    )
+    assert result.text == "done"
     assert calls["n"] == 3
 
 

@@ -5,6 +5,7 @@ __pycache__/
 .venv/
 venv/
 output/*.mp3
+output/*.json
 .foundry/
 *.egg-info/
 dist/

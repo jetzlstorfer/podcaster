@@ -47,11 +47,22 @@ CORS_ORIGINS = [
     if origin.strip()
 ]
 
+# Also allow any localhost/127.0.0.1 port and common forwarded-dev domains
+# (VS Code tunnels, GitHub Codespaces, Gitpod) so the UI works when opened
+# through a forwarded port rather than raw localhost. Override with
+# CORS_ORIGIN_REGEX to restrict or extend this.
+CORS_ORIGIN_REGEX = os.environ.get(
+    "CORS_ORIGIN_REGEX",
+    r"https?://(localhost|127\.0\.0\.1)(:\d+)?"
+    r"|https://.*\.(app\.github\.dev|github\.dev|gitpod\.io|devtunnels\.ms)",
+)
+
 app = FastAPI(title="Podcaster AG-UI Server")
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=CORS_ORIGINS,
+    allow_origin_regex=CORS_ORIGIN_REGEX,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
