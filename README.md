@@ -1,6 +1,6 @@
 # Podcaster
 
-A multi-agent pipeline that turns a research question into a ready-to-play podcast MP3.
+A multi-agent pipeline that turns a research question into a ready-to-play podcast MP3 (narrated by two hosts) 🎙️
 
 ```mermaid
 flowchart TD
