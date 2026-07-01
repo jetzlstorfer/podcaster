@@ -106,6 +106,9 @@ async def strip_unsupported_agui_events(request: Request, call_next):
 _output_dir = Path(config.OUTPUT_DIR)
 _output_dir.mkdir(parents=True, exist_ok=True)
 app.mount("/audio", StaticFiles(directory=str(_output_dir)), name="audio")
+# Serve generated cover-art PNGs (e.g. /images/podcast.png). Same output
+# directory as the audio; a separate mount keeps the URLs self-describing.
+app.mount("/images", StaticFiles(directory=str(_output_dir)), name="images")
 
 # Stream the podcast workflow over AG-UI at POST /podcast.
 add_agent_framework_fastapi_endpoint(app, make_workflow(), "/podcast")

@@ -74,6 +74,7 @@ async def _run_cli(question: str) -> None:
     print(f"Title : {result.get('title', '')}")
     print(f"Turns : {result.get('turns', 0)}")
     print(f"Audio : {result.get('audio', '')}")
+    print(f"Image : {result.get('image', '')}")
     print("=" * 60)
     print("\nScript:\n")
     for turn in result.get("script", []):
@@ -82,6 +83,7 @@ async def _run_cli(question: str) -> None:
 
 
 async def _run_narrate_only(script_path: str) -> None:
+    from src.podcaster.agents.image_designer import run_image_designer
     from src.podcaster.agents.narrator import run_narrator
     from src.podcaster.models import PodcastScript
 
@@ -92,11 +94,22 @@ async def _run_narrate_only(script_path: str) -> None:
 
     print(f"\n[Podcaster] Narrating saved script: {path}\n")
     script = PodcastScript.model_validate_json(path.read_text(encoding="utf-8"))
-    audio_path = await run_narrator(script)
+
+    async def _narrate() -> str:
+        return str(await run_narrator(script))
+
+    async def _image() -> str:
+        try:
+            return str(await run_image_designer(script))
+        except Exception as exc:  # noqa: BLE001 - image is optional, never fatal
+            return f"[Image skipped: {exc}]"
+
+    audio_path, image_path = await asyncio.gather(_narrate(), _image())
     print("\n" + "=" * 60)
     print(f"Title : {script.title}")
     print(f"Turns : {len(script.turns)}")
     print(f"Audio : {audio_path}")
+    print(f"Image : {image_path}")
     print("=" * 60)
 
 

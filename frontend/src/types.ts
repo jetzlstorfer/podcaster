@@ -18,11 +18,19 @@ export interface PodcastResult {
   turns: number;
   language: Language;
   audio: string;
+  image?: string;
   script: ScriptTurn[];
 }
 
 /** Pipeline stages, in order, matching the backend executor ids. */
-export const STAGES = ["parse", "research", "write_script", "narrate"] as const;
+export const STAGES = [
+  "parse",
+  "research",
+  "write_script",
+  "narrate",
+  "generate_image",
+  "finalize",
+] as const;
 export type Stage = (typeof STAGES)[number];
 
 export const STAGE_LABELS: Record<Stage, string> = {
@@ -30,4 +38,6 @@ export const STAGE_LABELS: Record<Stage, string> = {
   research: "Researching",
   write_script: "Writing script",
   narrate: "Narrating audio",
+  generate_image: "Generating cover art",
+  finalize: "Finishing up",
 };

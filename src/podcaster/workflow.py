@@ -27,10 +27,17 @@ from agent_framework import (
 from typing_extensions import Never
 
 from src.podcaster import config
+from src.podcaster.agents.image_designer import run_image_designer
 from src.podcaster.agents.narrator import _safe_filename, run_narrator
 from src.podcaster.agents.researcher import run_researcher
 from src.podcaster.agents.scriptwriter import run_scriptwriter
-from src.podcaster.models import PodcastRequest, PodcastScript, ResearchBrief
+from src.podcaster.models import (
+    ImageResult,
+    NarrationResult,
+    PodcastRequest,
+    PodcastScript,
+    ResearchBrief,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -99,13 +106,13 @@ class ScriptExecutor(Executor):
 
 
 class NarrateExecutor(Executor):
-    """Synthesise the script to MP3 and emit the final result."""
+    """Synthesise the script to MP3 and forward the result to the join."""
 
     @handler
     async def run(
         self,
         script: PodcastScript,
-        ctx: WorkflowContext[Never, dict[str, Any]],
+        ctx: WorkflowContext[NarrationResult],
     ) -> None:
         logger.info("[narrate] start — synthesizing %d turns", len(script.turns))
         started = time.perf_counter()
@@ -120,15 +127,72 @@ class NarrateExecutor(Executor):
             # Audio step is optional while the Speech resource isn't provisioned.
             audio = f"[Audio skipped: {exc}]"
             logger.warning("[narrate] skipped after %.1fs: %s", time.perf_counter() - started, exc)
+        await ctx.send_message(
+            NarrationResult(
+                title=script.title,
+                turns=len(script.turns),
+                language=script.language,
+                audio=audio,
+                script=list(script.turns),
+            )
+        )
+
+
+class ImageExecutor(Executor):
+    """Generate episode cover art in parallel with narration."""
+
+    @handler
+    async def run(
+        self,
+        script: PodcastScript,
+        ctx: WorkflowContext[ImageResult],
+    ) -> None:
+        logger.info("[generate_image] start — %r", script.title)
+        started = time.perf_counter()
+        try:
+            path = await run_image_designer(script)
+            # Served by the FastAPI static mount at /images.
+            image = f"/images/{Path(path).name}"
+            logger.info(
+                "[generate_image] done in %.1fs — %s",
+                time.perf_counter() - started,
+                image,
+            )
+        except Exception as exc:  # noqa: BLE001 - image is optional; never block the join
+            # Swallow every failure into a skip message. The fan-in barrier only
+            # fires once BOTH branches complete, so this branch must not raise.
+            image = f"[Image skipped: {exc}]"
+            logger.warning(
+                "[generate_image] skipped after %.1fs: %s",
+                time.perf_counter() - started,
+                exc,
+            )
+        await ctx.send_message(ImageResult(image=image))
+
+
+class FinalizeExecutor(Executor):
+    """Join the narrate + image branches and emit the final result."""
+
+    @handler
+    async def run(
+        self,
+        results: list[NarrationResult | ImageResult],
+        ctx: WorkflowContext[Never, dict[str, Any]],
+    ) -> None:
+        narration = next((r for r in results if isinstance(r, NarrationResult)), None)
+        image = next((r for r in results if isinstance(r, ImageResult)), None)
+        if narration is None:
+            raise RuntimeError("Finalize expected a narration result but got none.")
         await ctx.yield_output(
             {
-                "title": script.title,
-                "turns": len(script.turns),
-                "language": script.language,
-                "audio": audio,
+                "title": narration.title,
+                "turns": narration.turns,
+                "language": narration.language,
+                "audio": narration.audio,
+                "image": image.image if image else "[Image skipped: no result]",
                 "script": [
                     {"speaker": t.speaker, "text": t.text, "style": t.style}
-                    for t in script.turns
+                    for t in narration.script
                 ],
             }
         )
@@ -184,15 +248,24 @@ def _text_from_messages(messages: list[Any]) -> str:
 
 
 def make_workflow(name: str = "PodcastOrchestrator") -> Workflow:
-    """Build the linear parse → research → write_script → narrate workflow."""
+    """Build the parse → research → write_script → (narrate ∥ image) → finalize workflow.
+
+    After the script is written the workflow fans out to two parallel branches —
+    narration (MP3) and cover-art image — then fans in to a finalize step that
+    merges both into the final result. The image branch swallows its own errors
+    so a missing/failed image never blocks the join.
+    """
     parse = ParseRequestExecutor(id="parse")
     research = ResearchExecutor(id="research")
     write_script = ScriptExecutor(id="write_script")
     narrate = NarrateExecutor(id="narrate")
+    generate_image = ImageExecutor(id="generate_image")
+    finalize = FinalizeExecutor(id="finalize")
     return (
         WorkflowBuilder(name=name, start_executor=parse)
         .add_edge(parse, research)
         .add_edge(research, write_script)
-        .add_edge(write_script, narrate)
+        .add_fan_out_edges(write_script, [narrate, generate_image])
+        .add_fan_in_edges([narrate, generate_image], finalize)
         .build()
     )

@@ -120,3 +120,30 @@ class PodcastScript(BaseModel):
     title: str
     turns: list[DialogueTurn]
     language: Language = "english"
+
+
+class NarrationResult(BaseModel):
+    """Output of the narrate branch, consumed by the finalize join.
+
+    Carries the full script payload (title/turns/language + per-turn lines) so
+    the finalize executor can build the final result without a separate edge
+    from the script stage. ``audio`` is either a ``/audio/...`` URL or a
+    human-readable ``[Audio skipped: ...]`` message when synthesis was skipped.
+    """
+
+    title: str
+    turns: int
+    language: Language = "english"
+    audio: str
+    script: list[DialogueTurn]
+
+
+class ImageResult(BaseModel):
+    """Output of the parallel image branch, consumed by the finalize join.
+
+    ``image`` is either an ``/images/...`` URL or a human-readable
+    ``[Image skipped: ...]`` message when generation was skipped or failed.
+    """
+
+    image: str
+

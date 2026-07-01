@@ -68,6 +68,7 @@ export default function App(): React.JSX.Element {
   };
 
   const audioIsUrl = result?.audio?.startsWith("/audio/");
+  const imageIsUrl = result?.image?.startsWith("/images/");
 
   return (
     <div className="page">
@@ -159,6 +160,14 @@ export default function App(): React.JSX.Element {
           <p className="meta">
             {result.turns} turns · {result.language}
           </p>
+
+          {imageIsUrl && (
+            <img
+              className="cover"
+              src={backendUrl + result.image}
+              alt={`Cover art for ${result.title}`}
+            />
+          )}
 
           {audioIsUrl ? (
             <audio className="player" controls src={backendUrl + result.audio} />

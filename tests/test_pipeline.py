@@ -256,3 +256,82 @@ def test_cue_text_is_escaped():
     ssml = _build_ssml(_mai_script("Bread & butter [laughs] classics."))
     assert "&amp;" in ssml
     assert "Bread & butter" not in ssml
+
+
+# ── Image designer (cover art) ────────────────────────────────────────────────
+
+
+def test_image_account_endpoint_strips_project_suffix():
+    """The images REST route lives at the account root, not the project path."""
+    from src.podcaster import config
+
+    original = config.FOUNDRY_PROJECT_ENDPOINT
+    try:
+        config.FOUNDRY_PROJECT_ENDPOINT = (
+            "https://podcaster-resource.services.ai.azure.com/api/projects/podcaster"
+        )
+        assert (
+            config.image_account_endpoint()
+            == "https://podcaster-resource.services.ai.azure.com"
+        )
+    finally:
+        config.FOUNDRY_PROJECT_ENDPOINT = original
+
+
+def test_image_designer_build_prompt_includes_title_and_dialogue():
+    from src.podcaster.agents.image_designer import _build_prompt
+
+    script = PodcastScript(
+        title="Quantum Leaps",
+        turns=[
+            DialogueTurn(speaker="Alex", text="Qubits are wild."),
+            DialogueTurn(speaker="Jordan", text="Superposition explains it."),
+        ],
+    )
+    prompt = _build_prompt(script)
+    assert "Quantum Leaps" in prompt
+    assert "Alex: Qubits are wild." in prompt
+    assert "Jordan: Superposition explains it." in prompt
+
+
+def test_image_designer_build_prompt_caps_turns():
+    from src.podcaster.agents.image_designer import _build_prompt
+
+    turns = [DialogueTurn(speaker="Alex", text=f"line {i}") for i in range(30)]
+    prompt = _build_prompt(PodcastScript(title="Long", turns=turns))
+    # Only the first 12 turns are included in the excerpt.
+    assert "line 11" in prompt
+    assert "line 12" not in prompt
+
+
+def test_image_designer_extract_json_strips_fences():
+    from src.podcaster.agents.image_designer import _extract_json
+
+    raw = '```json\n{"prompt": "a bear in a forest",}\n```'
+    assert _extract_json(raw) == '{"prompt": "a bear in a forest"}'
+
+
+def test_image_url_uses_official_mai_route():
+    from src.podcaster.agents.image_designer import _image_url
+
+    url = _image_url()
+    # The documented Microsoft-managed MAI images endpoint lives at the account
+    # root, not under /api/projects/<project> or /openai/v1.
+    assert url.endswith("/mai/v1/images/generations")
+    assert "/api/projects/" not in url
+    assert "/openai/" not in url
+
+
+def test_image_dimensions_parse_size():
+    from src.podcaster import config
+    from src.podcaster.agents.image_designer import _image_dimensions
+
+    original = config.IMAGE_SIZE
+    try:
+        config.IMAGE_SIZE = "1024x768"
+        assert _image_dimensions() == (1024, 768)
+        config.IMAGE_SIZE = "bogus"
+        assert _image_dimensions() == (1024, 1024)
+    finally:
+        config.IMAGE_SIZE = original
+

@@ -22,6 +22,30 @@ FOUNDRY_PROJECT_ENDPOINT_FALLBACK: str = os.environ.get(
     "FOUNDRY_PROJECT_ENDPOINT_FALLBACK", ""
 )
 
+# MAI image model (cover art). Deployed in the same Foundry project as the chat
+# model, so it reuses FOUNDRY_PROJECT_ENDPOINT — only the deployment name differs.
+# Leave blank to disable image generation (the pipeline still completes).
+FOUNDRY_IMAGE_MODEL: str = os.environ.get("FOUNDRY_IMAGE_MODEL", "MAI-Image-2.5-Flash")
+# Output dimensions for the MAI images API. Each side must be >= 768 and the
+# product width*height must be <= 1,048,576 (e.g. 1024x1024). Output is PNG.
+IMAGE_SIZE: str = os.environ.get("IMAGE_SIZE", "1024x1024")
+
+
+def image_account_endpoint() -> str:
+    """Base Azure OpenAI account URL derived from the Foundry project endpoint.
+
+    The images REST API lives at the account root
+    (``https://<resource>.services.ai.azure.com``), not under the
+    ``/api/projects/<project>`` path that ``FOUNDRY_PROJECT_ENDPOINT`` carries,
+    so strip that suffix.
+    """
+    endpoint = FOUNDRY_PROJECT_ENDPOINT.strip().rstrip("/")
+    marker = "/api/projects/"
+    if marker in endpoint:
+        endpoint = endpoint.split(marker, 1)[0]
+    return endpoint
+
+
 # MAI-Voice-2 (Azure Speech)
 AZURE_SPEECH_ENDPOINT: str = os.environ.get("AZURE_SPEECH_ENDPOINT", "")
 AZURE_SPEECH_KEY: str = os.environ.get("AZURE_SPEECH_KEY", "")
