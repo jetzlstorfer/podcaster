@@ -90,9 +90,11 @@ export async function runPodcast(
           }
         },
         onCustomEvent: ({ event }) => capture(event),
-        onRunFinishedEvent: ({ event, result }) => {
-          capture(result);
-          capture(event);
+        onRunFinishedEvent: (params) => {
+          if (params.outcome === "success") {
+            capture(params.result);
+          }
+          capture(params.event);
         },
         onRunErrorEvent: ({ event }) => {
           const message =

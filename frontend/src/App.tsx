@@ -1,4 +1,4 @@
-import { useState } from "react";
+import React, { useState } from "react";
 
 import { backendUrl, runPodcast } from "./api";
 import {
@@ -13,7 +13,7 @@ import {
 type Status = "idle" | "running" | "done" | "error";
 
 /** Render a turn's text, styling inline performance cues like "[laughs]". */
-function renderTurnText(text: string): JSX.Element[] {
+function renderTurnText(text: string): React.JSX.Element[] {
   return text.split(/(\[[^\]]+\])/g).map((part, i) =>
     /^\[[^\]]+\]$/.test(part) ? (
       <em key={i} className="cue">
@@ -25,7 +25,7 @@ function renderTurnText(text: string): JSX.Element[] {
   );
 }
 
-export default function App(): JSX.Element {
+export default function App(): React.JSX.Element {
   const [topic, setTopic] = useState("");
   const [length, setLength] = useState<Length>("medium");
   const [language, setLanguage] = useState<Language>("english");
