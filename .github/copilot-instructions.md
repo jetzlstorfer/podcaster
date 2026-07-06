@@ -8,7 +8,7 @@ make run              # Start devui HTTP server on port 8088 (Agent Inspector)
 make cli Q="..."      # Run pipeline once, print script to stdout
 make test             # Run full test suite (pytest -v tests/)
 make lint             # Ruff linter: ruff check podcaster/ src/ main.py server.py
-make clean            # Remove __pycache__, output/*.mp3, vendored wheels, dist/build
+make clean            # Remove __pycache__, output/ artifacts (mp3/png/json), vendored wheels, dist/build, frontend/dist
 
 # Run a single test
 python -m pytest -v tests/test_narrator.py::test_narrator_generates_mp3

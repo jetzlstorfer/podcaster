@@ -1,4 +1,4 @@
-.PHONY: install run web ui cli lint clean test agent-wheels
+.PHONY: install run web ui ui-build cli lint clean test agent-wheels
 
 PYTHON  := python
 PORT    := 8088
@@ -21,6 +21,10 @@ web:
 ## Start the Vite dev server for the web UI (http://127.0.0.1:5173)
 ui:
 	cd frontend && npm run dev
+
+## Build the SPA into frontend/dist so `make web` serves API + UI on one origin
+ui-build:
+	cd frontend && npm install && npm run build
 
 ## Run the full pipeline once from the CLI
 ## Usage: make cli Q="Your research question here"
@@ -46,9 +50,9 @@ agent-wheels:
 test:
 	$(PYTHON) -m pytest -v tests/
 
-## Remove caches and generated MP3s
+## Remove caches and generated artifacts (audio, cover art, scripts, builds)
 clean:
 	find . -type d -name '__pycache__' -exec rm -rf {} + 2>/dev/null || true
-	rm -f output/*.mp3
+	rm -f output/*.mp3 output/*.png output/*.json
 	rm -f src/*/podcaster-*.whl
-	rm -rf dist build
+	rm -rf dist build frontend/dist

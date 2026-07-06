@@ -71,6 +71,7 @@ make cli Q="What are the latest breakthroughs in quantum computing?"
 | `make run` | Start the devui HTTP server on port 8088 (Agent Inspector) |
 | `make web` | Start the FastAPI **AG-UI** backend on port 8089 (for the web UI) |
 | `make ui` | Start the Vite dev server for the web UI (http://127.0.0.1:5173) |
+| `make ui-build` | Build the SPA into `frontend/dist` (so `make web` serves API + UI on one origin) |
 | `make cli Q="..."` | Run the full pipeline once and print the script |
 | `make cli SCRIPT=output/My_Title.json` | Re-narrate a previously saved script (skips research + writing) |
 | `make agent-wheels` | Build the shared `podcaster` wheel and vendor it into each hosted-agent service dir |
