@@ -15,6 +15,7 @@ dependencies = [
     "pydantic",
     "requests",
     "python-dotenv",
+    "typing-extensions",
 ]
 
 [tool.setuptools]
