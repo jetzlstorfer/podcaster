@@ -10,6 +10,19 @@ updates:
         patterns:
           - "*"
 
+  # Hosted-agent service dependencies (src/*/requirements.txt)
+  - package-ecosystem: "pip"
+    directories:
+      - "/src/researcher"
+      - "/src/scriptwriter"
+      - "/src/narrator"
+    schedule:
+      interval: "weekly"
+    groups:
+      hosted-agents:
+        patterns:
+          - "*"
+
   # Frontend dependencies (frontend/package.json)
   - package-ecosystem: "npm"
     directory: "/frontend"
