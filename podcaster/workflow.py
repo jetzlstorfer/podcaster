@@ -26,12 +26,11 @@ from agent_framework import (
 )
 from typing_extensions import Never
 
-from src.podcaster import config
-from src.podcaster.agents.image_designer import run_image_designer
-from src.podcaster.agents.narrator import _safe_filename, run_narrator
-from src.podcaster.agents.researcher import run_researcher
-from src.podcaster.agents.scriptwriter import run_scriptwriter
-from src.podcaster.models import (
+from podcaster import config
+from podcaster.agents.image_designer import run_image_designer
+from podcaster.agents.narrator import _safe_filename
+from podcaster.orchestrator import narrate, research, write_script
+from podcaster.models import (
     ImageResult,
     NarrationResult,
     PodcastRequest,
@@ -76,7 +75,7 @@ class ResearchExecutor(Executor):
             request.language,
         )
         started = time.perf_counter()
-        brief = await run_researcher(request)
+        brief = await research(request)
         logger.info(
             "[research] done in %.1fs — %d key facts, %d sources",
             time.perf_counter() - started,
@@ -93,7 +92,7 @@ class ScriptExecutor(Executor):
     async def run(self, brief: ResearchBrief, ctx: WorkflowContext[PodcastScript]) -> None:
         logger.info("[write_script] start topic=%r length=%s", brief.topic, brief.length)
         started = time.perf_counter()
-        script = await run_scriptwriter(brief)
+        script = await write_script(brief)
         script_path = _save_script(script)
         logger.info(
             "[write_script] done in %.1fs — %r, %d turns (saved to %s)",
@@ -116,17 +115,12 @@ class NarrateExecutor(Executor):
     ) -> None:
         logger.info("[narrate] start — synthesizing %d turns", len(script.turns))
         started = time.perf_counter()
-        try:
-            path = await run_narrator(script)
-            # Served by the FastAPI static mount at /audio.
-            audio = f"/audio/{Path(path).name}"
-            logger.info(
-                "[narrate] done in %.1fs — %s", time.perf_counter() - started, audio
-            )
-        except RuntimeError as exc:
-            # Audio step is optional while the Speech resource isn't provisioned.
-            audio = f"[Audio skipped: {exc}]"
-            logger.warning("[narrate] skipped after %.1fs: %s", time.perf_counter() - started, exc)
+        # ``narrate`` never raises for the "audio not configured" case — it
+        # returns a human-readable skip message so the fan-in never stalls.
+        audio = await narrate(script)
+        logger.info(
+            "[narrate] done in %.1fs — %s", time.perf_counter() - started, audio
+        )
         await ctx.send_message(
             NarrationResult(
                 title=script.title,

@@ -10,8 +10,8 @@ from pathlib import Path
 import requests
 from azure.identity import DefaultAzureCredential, get_bearer_token_provider
 
-from src.podcaster import config
-from src.podcaster.models import DialogueTurn, PodcastScript
+from podcaster import config
+from podcaster.models import DialogueTurn, PodcastScript
 
 logger = logging.getLogger(__name__)
 
@@ -223,18 +223,18 @@ def _safe_filename(title: str) -> str:
     return name[:60] or "podcast"
 
 
-async def run_narrator(
+async def synthesize_script(
     script: PodcastScript,
     *,
     voice_male: str | None = None,
     voice_female: str | None = None,
-    out_name: str | None = None,
-) -> Path:
-    """Synthesize a podcast script to MP3 via the Azure Speech REST API.
+) -> bytes:
+    """Synthesize a podcast script to MP3 bytes via the Azure Speech REST API.
 
     Pass ``voice_male`` / ``voice_female`` to override the configured voice
-    models (useful for A/B quality comparison across voice models). Pass
-    ``out_name`` to control the output filename (without extension).
+    models (useful for A/B quality comparison across voice models). The caller
+    decides what to do with the bytes (write to disk locally, or upload to Blob
+    in the hosted narrator).
     """
     if not config.AZURE_SPEECH_ENDPOINT:
         raise RuntimeError(
@@ -268,8 +268,24 @@ async def run_narrator(
     for turns in chunks:
         ssml = _build_ssml_for_turns(turns, xml_lang, male, female)
         parts.append(await asyncio.to_thread(_synthesize, url, ssml))
-    audio = b"".join(parts)
+    return b"".join(parts)
 
+
+async def run_narrator(
+    script: PodcastScript,
+    *,
+    voice_male: str | None = None,
+    voice_female: str | None = None,
+    out_name: str | None = None,
+) -> Path:
+    """Synthesize a script to an MP3 file in ``OUTPUT_DIR`` and return its path.
+
+    This is the local/in-process path (CLI, devui, tests). The hosted narrator
+    uploads to Blob instead — see :func:`podcaster.storage.upload_bytes`.
+    """
+    audio = await synthesize_script(
+        script, voice_male=voice_male, voice_female=voice_female
+    )
     out_dir = Path(config.OUTPUT_DIR)
     out_dir.mkdir(parents=True, exist_ok=True)
     filename = out_name or _safe_filename(script.title)
@@ -277,6 +293,11 @@ async def run_narrator(
     out_path.write_bytes(audio)
     logger.info("Wrote %d bytes of audio to %s", len(audio), out_path)
     return out_path
+
+
+def audio_blob_name(script: PodcastScript) -> str:
+    """Deterministic ``.mp3`` blob name for a script (safe title slug)."""
+    return f"{_safe_filename(script.title)}.mp3"
 
 
 def _synthesize(url: str, ssml: str) -> bytes:

@@ -12,3 +12,7 @@ output/*.png
 dist/
 build/
 .pytest_cache/
+# Vendored shared-package wheels (rebuild with `make agent-wheels`).
+src/*/podcaster-*.whl
+frontend/dist/
+frontend/node_modules/

@@ -1,0 +1,27 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/microsoft/AgentSchema/refs/heads/main/schemas/v1.0/ContainerAgent.yaml
+kind: hosted
+name: narrator
+protocols:
+  - protocol: responses
+    version: "1.0.0"
+resources:
+  # Speech synthesis of long episodes is CPU/IO heavy and buffers audio.
+  cpu: "1"
+  memory: "2Gi"
+environment_variables:
+  # No model — the narrator runs no LLM. Speech + Blob config resolves from the
+  # active azd env. APPLICATIONINSIGHTS_CONNECTION_STRING is injected at runtime.
+  - name: AZURE_SPEECH_ENDPOINT
+    value: ${AZURE_SPEECH_ENDPOINT}
+  - name: AZURE_SPEECH_RESOURCE_ID
+    value: ${AZURE_SPEECH_RESOURCE_ID}
+  - name: USE_SPEECH_ENTRA_AUTH
+    value: "true"
+  - name: AZURE_STORAGE_ACCOUNT_URL
+    value: ${AZURE_STORAGE_ACCOUNT_URL}
+  - name: AZURE_STORAGE_CONTAINER
+    value: ${AZURE_STORAGE_CONTAINER}
+code_configuration:
+  runtime: python_3_13
+  entry_point: main.py
+  dependency_resolution: remote_build

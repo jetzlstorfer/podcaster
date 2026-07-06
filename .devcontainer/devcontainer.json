@@ -3,7 +3,6 @@
 	"image": "mcr.microsoft.com/devcontainers/python:3.12",
 	"features": {
 		"ghcr.io/devcontainers/features/github-cli:1": {},
-		"ghcr.io/devcontainers/features/azure-cli:1": {},
 		"ghcr.io/azure/azure-dev/azd:0": {},
 		"ghcr.io/devcontainers/features/node:2.1.0": {
 			"version": "lts"
@@ -21,5 +20,5 @@
 			]
 		}
 	},
-	"postCreateCommand": "pip install ruff && make install && cd frontend && npm install"
+	"postCreateCommand": "curl -fsSL 'https://azurecliprod.blob.core.windows.net/$root/deb_install.sh' | sudo bash && azd update && pip install ruff && make install && cd frontend && npm install"
 }

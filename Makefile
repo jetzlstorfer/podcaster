@@ -1,4 +1,4 @@
-.PHONY: install run web ui cli lint clean test
+.PHONY: install run web ui cli lint clean test agent-wheels
 
 PYTHON  := python
 PORT    := 8088
@@ -30,7 +30,17 @@ cli:
 
 ## Lint with ruff (install separately: pip install ruff)
 lint:
-	ruff check src/ main.py server.py
+	ruff check podcaster/ src/ main.py server.py
+
+## Build the shared `podcaster` wheel and vendor it into each hosted agent
+## service dir (required before `azd ai agent run` / deploy so the bundle can
+## install the shared package). Pinned to podcaster 0.1.0 (see pyproject.toml).
+agent-wheels:
+	$(PYTHON) -m pip wheel . -w dist --no-deps
+	@for svc in researcher scriptwriter narrator; do \
+		cp dist/podcaster-0.1.0-py3-none-any.whl src/$$svc/ && \
+		echo "vendored wheel -> src/$$svc/"; \
+	done
 
 ## Run tests (synthesizes real MP3s into output/ via the Speech API)
 test:
@@ -40,3 +50,5 @@ test:
 clean:
 	find . -type d -name '__pycache__' -exec rm -rf {} + 2>/dev/null || true
 	rm -f output/*.mp3
+	rm -f src/*/podcaster-*.whl
+	rm -rf dist build

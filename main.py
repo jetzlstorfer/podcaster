@@ -49,7 +49,7 @@ def _run_server(port: int) -> None:
     # Must NOT be called inside asyncio.run() to avoid a nested loop conflict.
     from agent_framework.devui import serve
 
-    from src.podcaster.workflow import make_workflow
+    from podcaster.workflow import make_workflow
 
     workflow = make_workflow()
     print(f"Starting Podcaster devui server on port {port}…")
@@ -63,7 +63,7 @@ def _run_server(port: int) -> None:
 
 
 async def _run_cli(question: str) -> None:
-    from src.podcaster.workflow import make_workflow
+    from podcaster.workflow import make_workflow
 
     print(f"\n[Podcaster] Research question: {question}\n")
     workflow = make_workflow()
@@ -83,9 +83,9 @@ async def _run_cli(question: str) -> None:
 
 
 async def _run_narrate_only(script_path: str) -> None:
-    from src.podcaster.agents.image_designer import run_image_designer
-    from src.podcaster.agents.narrator import run_narrator
-    from src.podcaster.models import PodcastScript
+    from podcaster.agents.image_designer import run_image_designer
+    from podcaster.agents.narrator import run_narrator
+    from podcaster.models import PodcastScript
 
     path = Path(script_path)
     if not path.is_file():
@@ -116,7 +116,7 @@ async def _run_narrate_only(script_path: str) -> None:
 def main() -> None:
     args = _parse_args()
 
-    from src.podcaster.observability import setup_observability
+    from podcaster.observability import setup_observability
 
     setup_observability()
 

@@ -16,9 +16,9 @@ from pathlib import Path
 
 import pytest
 
-from src.podcaster import config
-from src.podcaster.agents.narrator import run_narrator
-from src.podcaster.models import DialogueTurn, PodcastScript
+from podcaster import config
+from podcaster.agents.narrator import run_narrator
+from podcaster.models import DialogueTurn, PodcastScript
 
 # Skip the whole module when audio output isn't configured.
 pytestmark = pytest.mark.skipif(

@@ -22,7 +22,7 @@ from typing import Any
 from agent_framework import Agent
 from azure.identity import DefaultAzureCredential
 
-from src.podcaster import config
+from podcaster import config
 
 logger = logging.getLogger(__name__)
 

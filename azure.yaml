@@ -1,0 +1,44 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/Azure/azure-dev/main/schemas/v1.0/azure.yaml.json
+
+name: podcaster
+metadata:
+    template: podcaster@0.1.0
+services:
+    narrator:
+        project: ./src/narrator
+        host: azure.ai.agent
+        language: python
+        config:
+            container:
+                resources:
+                    cpu: "0.5"
+                    memory: 1Gi
+            startupCommand: python main.py
+    researcher:
+        project: ./src/researcher
+        host: azure.ai.agent
+        language: python
+        config:
+            container:
+                resources:
+                    cpu: "0.5"
+                    memory: 1Gi
+            startupCommand: python main.py
+    scriptwriter:
+        project: ./src/scriptwriter
+        host: azure.ai.agent
+        language: python
+        config:
+            container:
+                resources:
+                    cpu: "0.5"
+                    memory: 1Gi
+            startupCommand: python main.py
+    web:
+        project: .
+        host: containerapp
+        language: docker
+        docker:
+            path: ./Dockerfile
+            context: .
+            remoteBuild: true

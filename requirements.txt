@@ -6,6 +6,7 @@ fastapi
 uvicorn
 aiohttp
 azure-identity
+azure-storage-blob
 pydantic
 requests
 python-dotenv

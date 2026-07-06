@@ -6,10 +6,11 @@ import re
 
 from agent_framework import Agent
 
-from src.podcaster.agents._resilience import make_foundry_client, run_agent_resilient
-from src.podcaster.agents.narrator import INLINE_CUES
-from src.podcaster.models import (
+from podcaster.agents._resilience import make_foundry_client, run_agent_resilient
+from podcaster.agents.narrator import INLINE_CUES
+from podcaster.models import (
     DELIVERY_STYLES,
+    LENGTH_SPECS,
     DialogueTurn,
     Language,
     Length,
@@ -106,6 +107,76 @@ def _build_prompt(brief: ResearchBrief) -> str:
     )
 
 
+# Fixed, self-adapting instructions for the DEPLOYED hosted scriptwriter agent.
+# The instructions are frozen at deploy time, so they embed the length/turn
+# budgets for every length and the full language list, and tell the model to
+# select based on the ``length`` and ``language`` fields of the incoming brief.
+_HOSTED_INSTRUCTIONS_TEMPLATE = """\
+You are an expert podcast script writer. You craft engaging, natural-sounding \
+conversations between two hosts:
+
+- Alex (male): enthusiastic, curious, provides context and asks great questions
+- Jordan (female): analytical, connects ideas, offers deeper insight and nuance
+
+The user message is a JSON research brief with fields: topic, summary, \
+key_facts, sources, language, and length. Write a complete podcast episode with:
+1. A warm intro where both hosts introduce the topic to the listener
+2. A natural back-and-forth discussion exploring the key points and facts
+3. A concise outro where both hosts summarise the main takeaways
+
+Calibrate the episode to the brief's ``length`` field:
+{length_rubric}
+When read aloud at a natural pace (~150 words per minute), the script should \
+fill the target duration. Do NOT stop early — keep exploring the material until \
+you reach the word budget, but never pad with filler or repetition.
+
+Write the ENTIRE dialogue (title and every turn) in the brief's ``language`` \
+field. Supported languages: {languages}. Keep the speaker names exactly \
+"Alex" and "Jordan" (do not translate them).
+
+Guidelines:
+- Write conversational, natural dialogue — not formal or lecture-like
+- Each turn should be 1-4 sentences
+- Include a mix of explanations, reactions, follow-up questions, and insights
+- For longer episodes, cover each sub-topic in the brief in depth, one at a \
+time, with the hosts digging into examples, data, and differing perspectives
+- Make it engaging and accessible to a curious general audience
+
+Make it sound HUMAN and immersive. Let the hosts react emotionally, hesitate, \
+build on each other's energy, and use natural interjections ("Oh, wow", "Right").
+
+You have two tools to shape the delivery:
+1. A "style" on each turn — how the WHOLE line is delivered. Choose one of: \
+{styles}. Use "neutral" for most lines; reach for the others only when the \
+content genuinely calls for it.
+2. Inline performance cues written INSIDE the text, in square brackets, exactly \
+where they happen: {cues}. Use them sparingly and only when they fit.
+
+Respond with a single JSON object — no markdown, no extra text:
+{{
+  "title": "<short episode title>",
+  "turns": [
+    {{"speaker": "Alex",   "style": "happy",   "text": "..."}},
+    {{"speaker": "Jordan", "style": "neutral", "text": "... [laughs] ..."}}
+  ]
+}}
+"""
+
+
+def build_hosted_instructions() -> str:
+    """Self-adapting instructions for the deployed hosted scriptwriter agent."""
+    rubric = "\n".join(
+        f'- "{name}": aim for {spec.minutes}; write {spec.words}; {spec.turns}.'
+        for name, spec in LENGTH_SPECS.items()
+    )
+    return _HOSTED_INSTRUCTIONS_TEMPLATE.format(
+        length_rubric=rubric,
+        languages=", ".join(_LANGUAGE_NAMES.values()),
+        styles=", ".join(f'"{s}"' for s in DELIVERY_STYLES),
+        cues=", ".join(f"[{c}]" for c in INLINE_CUES),
+    )
+
+
 def _extract_json(text: str) -> str:
     text = text.strip()
     fenced = re.search(r"```(?:json)?\s*([\s\S]+?)\s*```", text)
@@ -122,6 +193,20 @@ def _extract_json(text: str) -> str:
     return re.sub(r",(\s*[}\]])", r"\1", text)
 
 
+def parse_script(text: str, brief: ResearchBrief) -> PodcastScript:
+    """Parse a scriptwriter agent's raw JSON output into a ``PodcastScript``.
+
+    Shared by the in-process path and the backend's hosted-agent path.
+    """
+    try:
+        data = json.loads(_extract_json(text))
+    except json.JSONDecodeError:
+        logger.exception("Failed to parse scriptwriter JSON response")
+        raise
+    turns = [DialogueTurn(**t) for t in data["turns"]]
+    return PodcastScript(title=data["title"], turns=turns, language=brief.language)
+
+
 async def run_scriptwriter(brief: ResearchBrief) -> PodcastScript:
     def build(model: str | None, endpoint: str | None) -> Agent:
         return Agent(
@@ -131,10 +216,4 @@ async def run_scriptwriter(brief: ResearchBrief) -> PodcastScript:
 
     result = await run_agent_resilient(build, _build_prompt(brief))
     logger.debug("Scriptwriter raw response: %d chars", len(result.text or ""))
-    try:
-        data = json.loads(_extract_json(result.text))
-    except json.JSONDecodeError:
-        logger.exception("Failed to parse scriptwriter JSON response")
-        raise
-    turns = [DialogueTurn(**t) for t in data["turns"]]
-    return PodcastScript(title=data["title"], turns=turns, language=brief.language)
+    return parse_script(result.text, brief)

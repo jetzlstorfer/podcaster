@@ -1,0 +1,12 @@
+# Files excluded from the hosted-agent deploy bundle (like .gitignore).
+# The vendored `podcaster-*.whl` is intentionally NOT excluded — it's required.
+__pycache__/
+*.pyc
+*.pyo
+.env
+.venv/
+venv/
+*.mp3
+*.png
+.pytest_cache/
+.ruff_cache/

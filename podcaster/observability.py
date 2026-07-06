@@ -20,7 +20,7 @@ from __future__ import annotations
 
 import logging
 
-from src.podcaster import config
+from podcaster import config
 
 _configured = False
 

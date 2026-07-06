@@ -1,0 +1,583 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2018-05-01/subscriptionDeploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "metadata": {
+    "_generator": {
+      "name": "bicep",
+      "version": "0.44.1.10279",
+      "templateHash": "2068407518571800829"
+    }
+  },
+  "parameters": {
+    "environmentName": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 64,
+      "metadata": {
+        "description": "Name of the azd environment — used to tag and name resources."
+      }
+    },
+    "location": {
+      "type": "string",
+      "defaultValue": "swedencentral",
+      "minLength": 1,
+      "metadata": {
+        "description": "Primary location for all resources."
+      }
+    },
+    "resourceGroupName": {
+      "type": "string",
+      "defaultValue": "rg-podcaster",
+      "metadata": {
+        "description": "Existing resource group to deploy into (reused). Default: rg-podcaster."
+      }
+    },
+    "foundryProjectEndpoint": {
+      "type": "string",
+      "defaultValue": "",
+      "metadata": {
+        "description": "Foundry project endpoint the backend invokes hosted agents through."
+      }
+    },
+    "researcherAgentName": {
+      "type": "string",
+      "defaultValue": "",
+      "metadata": {
+        "description": "Hosted agent names the backend invokes (set after the agents are deployed)."
+      }
+    },
+    "scriptwriterAgentName": {
+      "type": "string",
+      "defaultValue": ""
+    },
+    "narratorAgentName": {
+      "type": "string",
+      "defaultValue": ""
+    },
+    "foundryModel": {
+      "type": "string",
+      "defaultValue": "gpt-5-mini",
+      "metadata": {
+        "description": "Chat model deployment used by the cover-art art director."
+      }
+    },
+    "foundryImageModel": {
+      "type": "string",
+      "defaultValue": "MAI-Image-2.5-Flash",
+      "metadata": {
+        "description": "MAI image deployment used to render the cover art."
+      }
+    },
+    "authClientId": {
+      "type": "string",
+      "defaultValue": "",
+      "metadata": {
+        "description": "Entra app (client) ID for Container Apps Easy Auth. Empty = Easy Auth disabled."
+      }
+    },
+    "authClientSecret": {
+      "type": "securestring",
+      "defaultValue": "",
+      "metadata": {
+        "description": "Entra app client secret for Easy Auth (required when authClientId is set)."
+      }
+    }
+  },
+  "variables": {
+    "tags": {
+      "azd-env-name": "[parameters('environmentName')]"
+    }
+  },
+  "resources": [
+    {
+      "type": "Microsoft.Resources/resourceGroups",
+      "apiVersion": "2022-09-01",
+      "name": "[parameters('resourceGroupName')]",
+      "location": "[parameters('location')]",
+      "tags": "[variables('tags')]"
+    },
+    {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2025-04-01",
+      "name": "podcaster-resources",
+      "resourceGroup": "[parameters('resourceGroupName')]",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "environmentName": {
+            "value": "[parameters('environmentName')]"
+          },
+          "location": {
+            "value": "[parameters('location')]"
+          },
+          "tags": {
+            "value": "[variables('tags')]"
+          },
+          "foundryProjectEndpoint": {
+            "value": "[parameters('foundryProjectEndpoint')]"
+          },
+          "researcherAgentName": {
+            "value": "[parameters('researcherAgentName')]"
+          },
+          "scriptwriterAgentName": {
+            "value": "[parameters('scriptwriterAgentName')]"
+          },
+          "narratorAgentName": {
+            "value": "[parameters('narratorAgentName')]"
+          },
+          "foundryModel": {
+            "value": "[parameters('foundryModel')]"
+          },
+          "foundryImageModel": {
+            "value": "[parameters('foundryImageModel')]"
+          },
+          "authClientId": {
+            "value": "[parameters('authClientId')]"
+          },
+          "authClientSecret": {
+            "value": "[parameters('authClientSecret')]"
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.44.1.10279",
+              "templateHash": "11682085782076847898"
+            }
+          },
+          "parameters": {
+            "environmentName": {
+              "type": "string",
+              "metadata": {
+                "description": "Name of the azd environment."
+              }
+            },
+            "location": {
+              "type": "string",
+              "defaultValue": "[resourceGroup().location]"
+            },
+            "tags": {
+              "type": "object",
+              "defaultValue": {}
+            },
+            "foundryProjectEndpoint": {
+              "type": "string",
+              "defaultValue": ""
+            },
+            "researcherAgentName": {
+              "type": "string",
+              "defaultValue": ""
+            },
+            "scriptwriterAgentName": {
+              "type": "string",
+              "defaultValue": ""
+            },
+            "narratorAgentName": {
+              "type": "string",
+              "defaultValue": ""
+            },
+            "foundryModel": {
+              "type": "string",
+              "defaultValue": "gpt-5-mini",
+              "metadata": {
+                "description": "Chat model deployment used by the cover-art art director."
+              }
+            },
+            "foundryImageModel": {
+              "type": "string",
+              "defaultValue": "MAI-Image-2.5-Flash",
+              "metadata": {
+                "description": "MAI image deployment used to render the cover art."
+              }
+            },
+            "authClientId": {
+              "type": "string",
+              "defaultValue": ""
+            },
+            "authClientSecret": {
+              "type": "securestring",
+              "defaultValue": ""
+            },
+            "audioContainerName": {
+              "type": "string",
+              "defaultValue": "audio",
+              "metadata": {
+                "description": "Blob container for generated podcast audio (private)."
+              }
+            },
+            "containerTargetPort": {
+              "type": "int",
+              "defaultValue": 80,
+              "metadata": {
+                "description": "Target port the FastAPI backend listens on inside the container. Set to 80 so the initial placeholder image (containerapps-helloworld, which serves :80) yields a healthy revision; azd deploy keeps this port for the real image via WEB_PORT."
+              }
+            }
+          },
+          "variables": {
+            "resourceToken": "[toLower(uniqueString(subscription().id, resourceGroup().id, parameters('environmentName')))]",
+            "prefix": "[format('pod{0}', variables('resourceToken'))]",
+            "acrPullRoleId": "7f951dda-4ed3-4680-a7ca-43fe172d538d",
+            "blobDataReaderRoleId": "2a2b9908-6ea1-4ae2-8e65-a410df84e7d1",
+            "placeholderImage": "mcr.microsoft.com/azuredocs/containerapps-helloworld:latest",
+            "enableAuth": "[not(empty(parameters('authClientId')))]"
+          },
+          "resources": [
+            {
+              "type": "Microsoft.OperationalInsights/workspaces",
+              "apiVersion": "2023-09-01",
+              "name": "[format('{0}-law', variables('prefix'))]",
+              "location": "[parameters('location')]",
+              "tags": "[parameters('tags')]",
+              "properties": {
+                "sku": {
+                  "name": "PerGB2018"
+                },
+                "retentionInDays": 30
+              }
+            },
+            {
+              "type": "Microsoft.Insights/components",
+              "apiVersion": "2020-02-02",
+              "name": "[format('{0}-appi', variables('prefix'))]",
+              "location": "[parameters('location')]",
+              "tags": "[parameters('tags')]",
+              "kind": "web",
+              "properties": {
+                "Application_Type": "web",
+                "WorkspaceResourceId": "[resourceId('Microsoft.OperationalInsights/workspaces', format('{0}-law', variables('prefix')))]"
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.OperationalInsights/workspaces', format('{0}-law', variables('prefix')))]"
+              ]
+            },
+            {
+              "type": "Microsoft.Storage/storageAccounts",
+              "apiVersion": "2023-05-01",
+              "name": "[take(format('{0}stor', variables('prefix')), 24)]",
+              "location": "[parameters('location')]",
+              "tags": "[parameters('tags')]",
+              "sku": {
+                "name": "Standard_LRS"
+              },
+              "kind": "StorageV2",
+              "properties": {
+                "allowBlobPublicAccess": false,
+                "allowSharedKeyAccess": false,
+                "minimumTlsVersion": "TLS1_2",
+                "supportsHttpsTrafficOnly": true,
+                "publicNetworkAccess": "Enabled",
+                "networkAcls": {
+                  "defaultAction": "Allow"
+                }
+              }
+            },
+            {
+              "type": "Microsoft.Storage/storageAccounts/blobServices",
+              "apiVersion": "2023-05-01",
+              "name": "[format('{0}/{1}', take(format('{0}stor', variables('prefix')), 24), 'default')]",
+              "dependsOn": [
+                "[resourceId('Microsoft.Storage/storageAccounts', take(format('{0}stor', variables('prefix')), 24))]"
+              ]
+            },
+            {
+              "type": "Microsoft.Storage/storageAccounts/blobServices/containers",
+              "apiVersion": "2023-05-01",
+              "name": "[format('{0}/{1}/{2}', take(format('{0}stor', variables('prefix')), 24), 'default', parameters('audioContainerName'))]",
+              "properties": {
+                "publicAccess": "None"
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Storage/storageAccounts/blobServices', take(format('{0}stor', variables('prefix')), 24), 'default')]"
+              ]
+            },
+            {
+              "type": "Microsoft.ContainerRegistry/registries",
+              "apiVersion": "2023-11-01-preview",
+              "name": "[take(format('{0}acr', variables('prefix')), 50)]",
+              "location": "[parameters('location')]",
+              "tags": "[parameters('tags')]",
+              "sku": {
+                "name": "Basic"
+              },
+              "properties": {
+                "adminUserEnabled": false
+              }
+            },
+            {
+              "type": "Microsoft.App/managedEnvironments",
+              "apiVersion": "2024-03-01",
+              "name": "[format('{0}-env', variables('prefix'))]",
+              "location": "[parameters('location')]",
+              "tags": "[parameters('tags')]",
+              "properties": {
+                "appLogsConfiguration": {
+                  "destination": "log-analytics",
+                  "logAnalyticsConfiguration": {
+                    "customerId": "[reference(resourceId('Microsoft.OperationalInsights/workspaces', format('{0}-law', variables('prefix'))), '2023-09-01').customerId]",
+                    "sharedKey": "[listKeys(resourceId('Microsoft.OperationalInsights/workspaces', format('{0}-law', variables('prefix'))), '2023-09-01').primarySharedKey]"
+                  }
+                }
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.OperationalInsights/workspaces', format('{0}-law', variables('prefix')))]"
+              ]
+            },
+            {
+              "type": "Microsoft.ManagedIdentity/userAssignedIdentities",
+              "apiVersion": "2023-01-31",
+              "name": "[format('{0}-web-id', variables('prefix'))]",
+              "location": "[parameters('location')]",
+              "tags": "[parameters('tags')]"
+            },
+            {
+              "type": "Microsoft.App/containerApps",
+              "apiVersion": "2024-03-01",
+              "name": "[format('{0}-web', variables('prefix'))]",
+              "location": "[parameters('location')]",
+              "tags": "[union(parameters('tags'), createObject('azd-service-name', 'web'))]",
+              "identity": {
+                "type": "UserAssigned",
+                "userAssignedIdentities": {
+                  "[format('{0}', resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', format('{0}-web-id', variables('prefix'))))]": {}
+                }
+              },
+              "properties": {
+                "managedEnvironmentId": "[resourceId('Microsoft.App/managedEnvironments', format('{0}-env', variables('prefix')))]",
+                "configuration": {
+                  "activeRevisionsMode": "Single",
+                  "ingress": {
+                    "external": true,
+                    "targetPort": "[parameters('containerTargetPort')]",
+                    "transport": "auto",
+                    "allowInsecure": false
+                  },
+                  "registries": [
+                    {
+                      "server": "[reference(resourceId('Microsoft.ContainerRegistry/registries', take(format('{0}acr', variables('prefix')), 50)), '2023-11-01-preview').loginServer]",
+                      "identity": "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', format('{0}-web-id', variables('prefix')))]"
+                    }
+                  ],
+                  "secrets": "[if(variables('enableAuth'), createArray(createObject('name', 'auth-client-secret', 'value', parameters('authClientSecret'))), createArray())]"
+                },
+                "template": {
+                  "containers": [
+                    {
+                      "name": "web",
+                      "image": "[variables('placeholderImage')]",
+                      "resources": {
+                        "cpu": "[json('1.0')]",
+                        "memory": "2Gi"
+                      },
+                      "env": [
+                        {
+                          "name": "WEB_HOST",
+                          "value": "0.0.0.0"
+                        },
+                        {
+                          "name": "WEB_PORT",
+                          "value": "[string(parameters('containerTargetPort'))]"
+                        },
+                        {
+                          "name": "AZURE_CLIENT_ID",
+                          "value": "[reference(resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', format('{0}-web-id', variables('prefix'))), '2023-01-31').clientId]"
+                        },
+                        {
+                          "name": "LOG_LEVEL",
+                          "value": "INFO"
+                        },
+                        {
+                          "name": "ENABLE_OTEL",
+                          "value": "true"
+                        },
+                        {
+                          "name": "FOUNDRY_PROJECT_ENDPOINT",
+                          "value": "[parameters('foundryProjectEndpoint')]"
+                        },
+                        {
+                          "name": "FOUNDRY_MODEL",
+                          "value": "[parameters('foundryModel')]"
+                        },
+                        {
+                          "name": "FOUNDRY_IMAGE_MODEL",
+                          "value": "[parameters('foundryImageModel')]"
+                        },
+                        {
+                          "name": "AZURE_STORAGE_ACCOUNT_URL",
+                          "value": "[reference(resourceId('Microsoft.Storage/storageAccounts', take(format('{0}stor', variables('prefix')), 24)), '2023-05-01').primaryEndpoints.blob]"
+                        },
+                        {
+                          "name": "AZURE_STORAGE_CONTAINER",
+                          "value": "[parameters('audioContainerName')]"
+                        },
+                        {
+                          "name": "RESEARCHER_AGENT_NAME",
+                          "value": "[parameters('researcherAgentName')]"
+                        },
+                        {
+                          "name": "SCRIPTWRITER_AGENT_NAME",
+                          "value": "[parameters('scriptwriterAgentName')]"
+                        },
+                        {
+                          "name": "NARRATOR_AGENT_NAME",
+                          "value": "[parameters('narratorAgentName')]"
+                        },
+                        {
+                          "name": "APPLICATIONINSIGHTS_CONNECTION_STRING",
+                          "value": "[reference(resourceId('Microsoft.Insights/components', format('{0}-appi', variables('prefix'))), '2020-02-02').ConnectionString]"
+                        }
+                      ]
+                    }
+                  ],
+                  "scale": {
+                    "minReplicas": 1,
+                    "maxReplicas": 3
+                  }
+                }
+              },
+              "dependsOn": [
+                "[extensionResourceId(resourceId('Microsoft.ContainerRegistry/registries', take(format('{0}acr', variables('prefix')), 50)), 'Microsoft.Authorization/roleAssignments', guid(resourceId('Microsoft.ContainerRegistry/registries', take(format('{0}acr', variables('prefix')), 50)), resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', format('{0}-web-id', variables('prefix'))), variables('acrPullRoleId')))]",
+                "[resourceId('Microsoft.Insights/components', format('{0}-appi', variables('prefix')))]",
+                "[extensionResourceId(resourceId('Microsoft.Storage/storageAccounts', take(format('{0}stor', variables('prefix')), 24)), 'Microsoft.Authorization/roleAssignments', guid(resourceId('Microsoft.Storage/storageAccounts', take(format('{0}stor', variables('prefix')), 24)), resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', format('{0}-web-id', variables('prefix'))), variables('blobDataReaderRoleId')))]",
+                "[resourceId('Microsoft.App/managedEnvironments', format('{0}-env', variables('prefix')))]",
+                "[resourceId('Microsoft.ContainerRegistry/registries', take(format('{0}acr', variables('prefix')), 50))]",
+                "[resourceId('Microsoft.Storage/storageAccounts', take(format('{0}stor', variables('prefix')), 24))]",
+                "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', format('{0}-web-id', variables('prefix')))]"
+              ]
+            },
+            {
+              "condition": "[variables('enableAuth')]",
+              "type": "Microsoft.App/containerApps/authConfigs",
+              "apiVersion": "2024-03-01",
+              "name": "[format('{0}/{1}', format('{0}-web', variables('prefix')), 'current')]",
+              "properties": {
+                "platform": {
+                  "enabled": true
+                },
+                "globalValidation": {
+                  "unauthenticatedClientAction": "RedirectToLoginPage",
+                  "redirectToProvider": "azureactivedirectory"
+                },
+                "identityProviders": {
+                  "azureActiveDirectory": {
+                    "enabled": true,
+                    "registration": {
+                      "openIdIssuer": "[format('{0}{1}/v2.0', environment().authentication.loginEndpoint, tenant().tenantId)]",
+                      "clientId": "[parameters('authClientId')]",
+                      "clientSecretSettingName": "auth-client-secret"
+                    },
+                    "validation": {
+                      "allowedAudiences": [
+                        "[format('api://{0}', parameters('authClientId'))]"
+                      ]
+                    }
+                  }
+                },
+                "login": {
+                  "preserveUrlFragmentsForLogins": true
+                }
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.App/containerApps', format('{0}-web', variables('prefix')))]"
+              ]
+            },
+            {
+              "type": "Microsoft.Authorization/roleAssignments",
+              "apiVersion": "2022-04-01",
+              "scope": "[resourceId('Microsoft.ContainerRegistry/registries', take(format('{0}acr', variables('prefix')), 50))]",
+              "name": "[guid(resourceId('Microsoft.ContainerRegistry/registries', take(format('{0}acr', variables('prefix')), 50)), resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', format('{0}-web-id', variables('prefix'))), variables('acrPullRoleId'))]",
+              "properties": {
+                "roleDefinitionId": "[subscriptionResourceId('Microsoft.Authorization/roleDefinitions', variables('acrPullRoleId'))]",
+                "principalId": "[reference(resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', format('{0}-web-id', variables('prefix'))), '2023-01-31').principalId]",
+                "principalType": "ServicePrincipal"
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.ContainerRegistry/registries', take(format('{0}acr', variables('prefix')), 50))]",
+                "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', format('{0}-web-id', variables('prefix')))]"
+              ]
+            },
+            {
+              "type": "Microsoft.Authorization/roleAssignments",
+              "apiVersion": "2022-04-01",
+              "scope": "[resourceId('Microsoft.Storage/storageAccounts', take(format('{0}stor', variables('prefix')), 24))]",
+              "name": "[guid(resourceId('Microsoft.Storage/storageAccounts', take(format('{0}stor', variables('prefix')), 24)), resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', format('{0}-web-id', variables('prefix'))), variables('blobDataReaderRoleId'))]",
+              "properties": {
+                "roleDefinitionId": "[subscriptionResourceId('Microsoft.Authorization/roleDefinitions', variables('blobDataReaderRoleId'))]",
+                "principalId": "[reference(resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', format('{0}-web-id', variables('prefix'))), '2023-01-31').principalId]",
+                "principalType": "ServicePrincipal"
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Storage/storageAccounts', take(format('{0}stor', variables('prefix')), 24))]",
+                "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', format('{0}-web-id', variables('prefix')))]"
+              ]
+            }
+          ],
+          "outputs": {
+            "registryLoginServer": {
+              "type": "string",
+              "value": "[reference(resourceId('Microsoft.ContainerRegistry/registries', take(format('{0}acr', variables('prefix')), 50)), '2023-11-01-preview').loginServer]"
+            },
+            "webUri": {
+              "type": "string",
+              "value": "[format('https://{0}', reference(resourceId('Microsoft.App/containerApps', format('{0}-web', variables('prefix'))), '2024-03-01').configuration.ingress.fqdn)]"
+            },
+            "storageAccountUrl": {
+              "type": "string",
+              "value": "[reference(resourceId('Microsoft.Storage/storageAccounts', take(format('{0}stor', variables('prefix')), 24)), '2023-05-01').primaryEndpoints.blob]"
+            },
+            "audioContainerName": {
+              "type": "string",
+              "value": "[parameters('audioContainerName')]"
+            },
+            "webIdentityPrincipalId": {
+              "type": "string",
+              "value": "[reference(resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', format('{0}-web-id', variables('prefix'))), '2023-01-31').principalId]"
+            },
+            "webIdentityClientId": {
+              "type": "string",
+              "value": "[reference(resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', format('{0}-web-id', variables('prefix'))), '2023-01-31').clientId]"
+            }
+          }
+        }
+      },
+      "dependsOn": [
+        "[subscriptionResourceId('Microsoft.Resources/resourceGroups', parameters('resourceGroupName'))]"
+      ]
+    }
+  ],
+  "outputs": {
+    "AZURE_LOCATION": {
+      "type": "string",
+      "value": "[parameters('location')]"
+    },
+    "AZURE_RESOURCE_GROUP": {
+      "type": "string",
+      "value": "[parameters('resourceGroupName')]"
+    },
+    "AZURE_CONTAINER_REGISTRY_ENDPOINT": {
+      "type": "string",
+      "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, parameters('resourceGroupName')), 'Microsoft.Resources/deployments', 'podcaster-resources'), '2025-04-01').outputs.registryLoginServer.value]"
+    },
+    "SERVICE_WEB_ENDPOINT_URL": {
+      "type": "string",
+      "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, parameters('resourceGroupName')), 'Microsoft.Resources/deployments', 'podcaster-resources'), '2025-04-01').outputs.webUri.value]"
+    },
+    "AZURE_STORAGE_ACCOUNT_URL": {
+      "type": "string",
+      "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, parameters('resourceGroupName')), 'Microsoft.Resources/deployments', 'podcaster-resources'), '2025-04-01').outputs.storageAccountUrl.value]"
+    },
+    "AZURE_STORAGE_CONTAINER": {
+      "type": "string",
+      "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, parameters('resourceGroupName')), 'Microsoft.Resources/deployments', 'podcaster-resources'), '2025-04-01').outputs.audioContainerName.value]"
+    },
+    "WEB_IDENTITY_PRINCIPAL_ID": {
+      "type": "string",
+      "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, parameters('resourceGroupName')), 'Microsoft.Resources/deployments', 'podcaster-resources'), '2025-04-01').outputs.webIdentityPrincipalId.value]"
+    }
+  }
+}

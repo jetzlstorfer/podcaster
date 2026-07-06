@@ -66,6 +66,27 @@ PODCAST_VOICE_FEMALE: str = os.environ.get(
 HOST_MALE: str = os.environ.get("HOST_MALE", "Alex")
 HOST_FEMALE: str = os.environ.get("HOST_FEMALE", "Jordan")
 
+# --- Hosted-agent orchestration (backend) ---
+# When an agent NAME is set the backend invokes the DEPLOYED Foundry hosted
+# agent for that stage instead of running it in-process. Leave every name blank
+# for local development, where each stage runs in-process via FoundryChatClient
+# (``make run`` / ``make cli`` / tests are unaffected). Versions are optional —
+# a blank version connects to the latest deployed version of the agent.
+RESEARCHER_AGENT_NAME: str = os.environ.get("RESEARCHER_AGENT_NAME", "")
+RESEARCHER_AGENT_VERSION: str = os.environ.get("RESEARCHER_AGENT_VERSION", "")
+SCRIPTWRITER_AGENT_NAME: str = os.environ.get("SCRIPTWRITER_AGENT_NAME", "")
+SCRIPTWRITER_AGENT_VERSION: str = os.environ.get("SCRIPTWRITER_AGENT_VERSION", "")
+NARRATOR_AGENT_NAME: str = os.environ.get("NARRATOR_AGENT_NAME", "")
+NARRATOR_AGENT_VERSION: str = os.environ.get("NARRATOR_AGENT_VERSION", "")
+
+# --- Blob storage for generated audio ---
+# When ``AZURE_STORAGE_ACCOUNT_URL`` is set the narrator uploads the MP3 to this
+# container (via managed identity) and the backend serves it through the
+# ``/audio/<blob>`` proxy. Leave it blank for local development, where the
+# narrator writes the MP3 to ``OUTPUT_DIR`` and ``/audio`` serves it from disk.
+AZURE_STORAGE_ACCOUNT_URL: str = os.environ.get("AZURE_STORAGE_ACCOUNT_URL", "")
+AZURE_STORAGE_CONTAINER: str = os.environ.get("AZURE_STORAGE_CONTAINER", "audio")
+
 # Voice-model presets for A/B quality comparison.
 # Each label maps to a (male_voice, female_voice) pair. Used by the tests to
 # synthesize one MP3 per preset so you can compare audio quality.

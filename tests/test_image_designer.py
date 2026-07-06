@@ -17,8 +17,8 @@ from pathlib import Path
 
 import pytest
 
-from src.podcaster.agents.image_designer import run_image_designer
-from src.podcaster.models import DialogueTurn, PodcastScript
+from podcaster.agents.image_designer import run_image_designer
+from podcaster.models import DialogueTurn, PodcastScript
 
 pytestmark = pytest.mark.skipif(
     os.environ.get("RUN_IMAGE_INTEGRATION") != "1",

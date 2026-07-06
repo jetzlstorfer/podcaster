@@ -143,3 +143,4 @@ pyproject.toml   makes src/podcaster installable
    generations exceed Container Apps limits.
 2. Verify `gpt-5-mini` capacity and MAI-Voice-2 availability in Sweden Central before deploy.
 3. Narrator is a non-LLM code agent hosted as a Foundry agent (per request) — unusual but valid.
+4. There is already a resource group on Azure "rg-podcaster" that we should use

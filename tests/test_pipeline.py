@@ -6,15 +6,15 @@ environment (unlike the audio integration tests in ``test_narrator.py``).
 
 from __future__ import annotations
 
-from src.podcaster.agents.narrator import _build_ssml
-from src.podcaster.agents.scriptwriter import _build_instructions
-from src.podcaster.models import (
+from podcaster.agents.narrator import _build_ssml
+from podcaster.agents.scriptwriter import _build_instructions
+from podcaster.models import (
     DialogueTurn,
     PodcastRequest,
     PodcastScript,
     length_spec,
 )
-from src.podcaster.workflow import _parse_request, _text_from_messages
+from podcaster.workflow import _parse_request, _text_from_messages
 
 
 def test_parse_request_from_json():
@@ -78,14 +78,14 @@ def test_ssml_language_german():
 
 
 def test_is_rate_limit_detects_429():
-    from src.podcaster.agents._resilience import _is_rate_limit
+    from podcaster.agents._resilience import _is_rate_limit
 
     assert _is_rate_limit(Exception("Error code: 429 - rate_limit_exceeded"))
     assert not _is_rate_limit(Exception("some other failure"))
 
 
 def test_transient_invalid_payload_is_retryable():
-    from src.podcaster.agents._resilience import _is_transient_bad_request, _should_retry
+    from podcaster.agents._resilience import _is_transient_bad_request, _should_retry
 
     err = Exception(
         "Error code: 400 - {'error': {'code': 'invalid_payload', "
@@ -99,7 +99,7 @@ def test_transient_invalid_payload_is_retryable():
 def test_run_agent_resilient_retries_then_succeeds():
     import asyncio
 
-    from src.podcaster.agents import _resilience
+    from podcaster.agents import _resilience
 
     calls = {"n": 0}
 
@@ -131,7 +131,7 @@ def test_run_agent_resilient_retries_then_succeeds():
 def test_run_agent_resilient_retries_on_empty_response():
     import asyncio
 
-    from src.podcaster.agents import _resilience
+    from podcaster.agents import _resilience
 
     calls = {"n": 0}
 
@@ -163,7 +163,7 @@ def test_run_agent_resilient_retries_on_empty_response():
 def test_run_agent_resilient_reraises_non_rate_limit():
     import asyncio
 
-    from src.podcaster.agents import _resilience
+    from podcaster.agents import _resilience
 
     class _FakeAgent:
         async def run(self, prompt):
@@ -208,7 +208,7 @@ def test_inline_cue_stripped_to_break_for_mai_voice():
 
 def test_inline_cue_stripped_to_break_for_neural_voice():
     """Voices that can't perform cues get a pause instead of the cue word."""
-    from src.podcaster.agents.narrator import _build_ssml_for_turns
+    from podcaster.agents.narrator import _build_ssml_for_turns
 
     turns = [DialogueTurn(speaker="Alex", text="Wow. [laughs] Okay.")]
     ssml = _build_ssml_for_turns(turns, "en-US", "en-US-AndrewNeural", "en-US-AvaNeural")
@@ -225,7 +225,7 @@ def test_style_uses_express_as_for_mai_voice():
 
 def test_style_falls_back_to_prosody_for_neural_voice():
     """Voices without native style support approximate the emotion with prosody."""
-    from src.podcaster.agents.narrator import _build_ssml_for_turns
+    from podcaster.agents.narrator import _build_ssml_for_turns
 
     turns = [DialogueTurn(speaker="Alex", text="This is huge news.", style="excited")]
     ssml = _build_ssml_for_turns(turns, "en-US", "en-US-AndrewNeural", "en-US-AvaNeural")
@@ -235,7 +235,7 @@ def test_style_falls_back_to_prosody_for_neural_voice():
 
 def test_style_falls_back_for_mai_voice_without_styles():
     """en-US-Grant:MAI-Voice-2 ships no styles, so it must not emit express-as."""
-    from src.podcaster.agents.narrator import _build_ssml_for_turns
+    from podcaster.agents.narrator import _build_ssml_for_turns
 
     turns = [DialogueTurn(speaker="Alex", text="This is huge news.", style="excited")]
     ssml = _build_ssml_for_turns(
@@ -263,7 +263,7 @@ def test_cue_text_is_escaped():
 
 def test_image_account_endpoint_strips_project_suffix():
     """The images REST route lives at the account root, not the project path."""
-    from src.podcaster import config
+    from podcaster import config
 
     original = config.FOUNDRY_PROJECT_ENDPOINT
     try:
@@ -279,7 +279,7 @@ def test_image_account_endpoint_strips_project_suffix():
 
 
 def test_image_designer_build_prompt_includes_title_and_dialogue():
-    from src.podcaster.agents.image_designer import _build_prompt
+    from podcaster.agents.image_designer import _build_prompt
 
     script = PodcastScript(
         title="Quantum Leaps",
@@ -295,7 +295,7 @@ def test_image_designer_build_prompt_includes_title_and_dialogue():
 
 
 def test_image_designer_build_prompt_caps_turns():
-    from src.podcaster.agents.image_designer import _build_prompt
+    from podcaster.agents.image_designer import _build_prompt
 
     turns = [DialogueTurn(speaker="Alex", text=f"line {i}") for i in range(30)]
     prompt = _build_prompt(PodcastScript(title="Long", turns=turns))
@@ -305,14 +305,14 @@ def test_image_designer_build_prompt_caps_turns():
 
 
 def test_image_designer_extract_json_strips_fences():
-    from src.podcaster.agents.image_designer import _extract_json
+    from podcaster.agents.image_designer import _extract_json
 
     raw = '```json\n{"prompt": "a bear in a forest",}\n```'
     assert _extract_json(raw) == '{"prompt": "a bear in a forest"}'
 
 
 def test_image_url_uses_official_mai_route():
-    from src.podcaster.agents.image_designer import _image_url
+    from podcaster.agents.image_designer import _image_url
 
     url = _image_url()
     # The documented Microsoft-managed MAI images endpoint lives at the account
@@ -323,8 +323,8 @@ def test_image_url_uses_official_mai_route():
 
 
 def test_image_dimensions_parse_size():
-    from src.podcaster import config
-    from src.podcaster.agents.image_designer import _image_dimensions
+    from podcaster import config
+    from podcaster.agents.image_designer import _image_dimensions
 
     original = config.IMAGE_SIZE
     try:
