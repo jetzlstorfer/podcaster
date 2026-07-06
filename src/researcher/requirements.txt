@@ -9,10 +9,10 @@ agent-framework-foundry>=1.10.0
 # protocol-2.0.0 hosted environment, which Foundry does not yet run (the
 # unpinned latest raised "environment is running on protocol 1.0.0, but the
 # agent requires protocol 2.0.0" at invocation time).
-agent-framework-foundry-hosting==1.0.0a260618
+agent-framework-foundry-hosting==1.0.0a260630
 # a260618 imports `from mcp import McpError` but doesn't declare mcp as a
 # dependency; pin to the same range agent-framework-core uses for its `all` extra.
-mcp>=1.24.0,<2
+mcp>=1.28.1,<2
 azure-identity
 python-dotenv
 ./podcaster-0.1.0-py3-none-any.whl
