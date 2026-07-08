@@ -12,6 +12,13 @@ import {
 } from "./types";
 
 type Status = "idle" | "running" | "done" | "error";
+const PRE_PARALLEL_STAGES: readonly Stage[] = STAGES.slice(
+  0,
+  STAGES.indexOf(PARALLEL_STAGES[0]),
+);
+const POST_PARALLEL_STAGES: readonly Stage[] = STAGES.slice(
+  STAGES.indexOf(PARALLEL_STAGES[PARALLEL_STAGES.length - 1]) + 1,
+);
 
 /** Render a turn's text, styling inline performance cues like "[laughs]". */
 function renderTurnText(text: string): React.JSX.Element[] {
@@ -46,9 +53,6 @@ export default function App(): React.JSX.Element {
   if (isRunning && startedStages.size === 0) {
     activeStages.add("parse");
   }
-  const sequentialStages = STAGES.filter(
-    (stage) => !PARALLEL_STAGES.includes(stage),
-  );
 
   const handleGenerate = async () => {
     if (!topic.trim() || isRunning) return;
@@ -146,7 +150,7 @@ export default function App(): React.JSX.Element {
         <section className="card">
           <h2>Progress</h2>
           <ol className="steps">
-            {sequentialStages.slice(0, 3).map((stage) => {
+            {PRE_PARALLEL_STAGES.map((stage) => {
               const state =
                 status === "done"
                   ? "done"
@@ -183,7 +187,7 @@ export default function App(): React.JSX.Element {
                 })}
               </ul>
             </li>
-            {sequentialStages.slice(3).map((stage) => {
+            {POST_PARALLEL_STAGES.map((stage) => {
               const state =
                 status === "done"
                   ? "done"
