@@ -48,6 +48,7 @@ jobs:
           AZURE_CLIENT_ID:             ${{ vars.AZURE_CLIENT_ID }}
           AZURE_TENANT_ID:             ${{ vars.AZURE_TENANT_ID }}
           AZURE_CONTAINER_REGISTRY_ENDPOINT: ${{ vars.AZURE_CONTAINER_REGISTRY_ENDPOINT }}
+          AZURE_AI_PROJECT_ID:             ${{ vars.AZURE_AI_PROJECT_ID }}
           FOUNDRY_PROJECT_ENDPOINT:    ${{ vars.FOUNDRY_PROJECT_ENDPOINT }}
           FOUNDRY_MODEL:               ${{ vars.FOUNDRY_MODEL }}
           FOUNDRY_IMAGE_MODEL:         ${{ vars.FOUNDRY_IMAGE_MODEL }}
