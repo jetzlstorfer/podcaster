@@ -32,7 +32,7 @@ jobs:
         run: azd extension install azure.ai.agents
 
       - name: Deploy
-        run: azd up --no-prompt
+        run: azd deploy --no-prompt
         env:
           AZURE_ENV_NAME:              ${{ vars.AZURE_ENV_NAME }}
           AZURE_LOCATION:              ${{ vars.AZURE_LOCATION }}
