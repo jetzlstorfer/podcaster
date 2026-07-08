@@ -33,6 +33,13 @@ export const STAGES = [
 ] as const;
 export type Stage = (typeof STAGES)[number];
 export const PARALLEL_STAGES: readonly Stage[] = ["narrate", "generate_image"];
+export const STAGE_GROUPS: ReadonlyArray<ReadonlyArray<Stage>> = [
+  ["parse"],
+  ["research"],
+  ["write_script"],
+  PARALLEL_STAGES,
+  ["finalize"],
+];
 
 export const STAGE_LABELS: Record<Stage, string> = {
   parse: "Reading request",

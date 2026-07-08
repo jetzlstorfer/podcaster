@@ -4,15 +4,13 @@ import { backendUrl, runPodcast } from "./api";
 import {
   Language,
   Length,
-  PARALLEL_STAGES,
   PodcastResult,
+  STAGE_GROUPS,
   STAGE_LABELS,
   Stage,
 } from "./types";
 
 type Status = "idle" | "running" | "done" | "error";
-const PRE_PARALLEL_STAGES: readonly Stage[] = ["parse", "research", "write_script"];
-const POST_PARALLEL_STAGES: readonly Stage[] = ["finalize"];
 
 function getStageState(
   stage: Stage,
@@ -54,11 +52,10 @@ export default function App(): React.JSX.Element {
     () => new Set([...startedStages].filter((stage) => !doneStages.has(stage))),
     [startedStages, doneStages],
   );
-  // Keep a visible active indicator while a run has started but no stage event
-  // has arrived yet.
-  if (isRunning && startedStages.size === 0) {
-    activeStages.add("parse");
-  }
+  const visibleActiveStages = useMemo(() => {
+    if (!isRunning || startedStages.size > 0) return activeStages;
+    return new Set<Stage>(["parse"]);
+  }, [activeStages, isRunning, startedStages.size]);
 
   const handleGenerate = async () => {
     if (!topic.trim() || isRunning) return;
@@ -156,43 +153,37 @@ export default function App(): React.JSX.Element {
         <section className="card">
           <h2>Progress</h2>
           <ol className="steps">
-            {PRE_PARALLEL_STAGES.map((stage) => {
-              const state = getStageState(stage, status, doneStages, activeStages);
-              return (
-                <li key={stage} className={`step step-${state}`}>
+            {STAGE_GROUPS.map((group) =>
+              group.length === 1 ? (
+                <li
+                  key={group[0]}
+                  className={`step step-${getStageState(group[0], status, doneStages, visibleActiveStages)}`}
+                >
                   <span className="dot" />
-                  {STAGE_LABELS[stage]}
+                  {STAGE_LABELS[group[0]]}
                 </li>
-              );
-            })}
-            <li className="step-group">
-              <span className="group-label">In parallel</span>
-              <ul className="parallel-steps">
-                {PARALLEL_STAGES.map((stage) => {
-                  const state = getStageState(
-                    stage,
-                    status,
-                    doneStages,
-                    activeStages,
-                  );
-                  return (
-                    <li key={stage} className={`step step-${state}`}>
-                      <span className="dot" />
-                      {STAGE_LABELS[stage]}
-                    </li>
-                  );
-                })}
-              </ul>
-            </li>
-            {POST_PARALLEL_STAGES.map((stage) => {
-              const state = getStageState(stage, status, doneStages, activeStages);
-              return (
-                <li key={stage} className={`step step-${state}`}>
-                  <span className="dot" />
-                  {STAGE_LABELS[stage]}
+              ) : (
+                <li key={group.join("-")} className="step-group">
+                  <span className="group-label">In parallel</span>
+                  <ul className="parallel-steps">
+                    {group.map((stage) => {
+                      const state = getStageState(
+                        stage,
+                        status,
+                        doneStages,
+                        visibleActiveStages,
+                      );
+                      return (
+                        <li key={stage} className={`step step-${state}`}>
+                          <span className="dot" />
+                          {STAGE_LABELS[stage]}
+                        </li>
+                      );
+                    })}
+                  </ul>
                 </li>
-              );
-            })}
+              ),
+            )}
           </ol>
           {error && <p className="error">Error: {error}</p>}
         </section>
