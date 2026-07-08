@@ -57,9 +57,8 @@ Guidelines:
 - Describe a single striking scene or visual metaphor that captures the topic.
 - Specify subject, setting, composition, lighting, mood, and art style \
 (e.g. editorial illustration, cinematic 3D render, flat vector, oil painting).
-- Do NOT include any text, words, letters, logos, or captions in the image.
-- No real people's faces or trademarked characters.
 - Keep it to 1-3 sentences, suitable for a square 1:1 cover.
+- Add a podcast icon somewhere in the prompt so it is not generic but clearly a podcast cover.
 
 Respond with a single JSON object — no markdown, no extra text:
 {"prompt": "<the image generation prompt>"}
