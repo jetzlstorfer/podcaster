@@ -28,6 +28,9 @@ jobs:
             --federated-credential-provider github \
             --tenant-id "${{ vars.AZURE_TENANT_ID }}"
 
+      - name: Install azd extensions
+        run: azd extension install azure.ai.agents
+
       - name: Deploy
         run: azd up --no-prompt
         env:
