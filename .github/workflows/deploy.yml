@@ -55,5 +55,16 @@ jobs:
       - name: Install azd extensions
         run: azd extension install azure.ai.agents
 
+      - name: Hydrate azd environment
+        run: |
+          azd env new "$AZURE_ENV_NAME" --no-prompt \
+            --subscription "$AZURE_SUBSCRIPTION_ID" \
+            --location "$AZURE_LOCATION" || azd env select "$AZURE_ENV_NAME"
+          azd env set AZURE_LOCATION       "$AZURE_LOCATION"
+          azd env set AZURE_SUBSCRIPTION_ID "$AZURE_SUBSCRIPTION_ID"
+          azd env set AZURE_RESOURCE_GROUP  "$AZURE_RESOURCE_GROUP"
+          azd env set AZURE_AI_PROJECT_ID   "$AZURE_AI_PROJECT_ID"
+          azd env set AZURE_CONTAINER_REGISTRY_ENDPOINT "$AZURE_CONTAINER_REGISTRY_ENDPOINT"
+
       - name: Deploy
         run: azd deploy --no-prompt
