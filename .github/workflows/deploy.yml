@@ -1,19 +1,26 @@
 name: Deploy to Azure
 
 on:
-  push:
+  workflow_run:
+    workflows: [Lint and Build]
     branches: [main]
+    types: [completed]
   workflow_dispatch:
 
 permissions:
   id-token: write   # Required for OIDC federated credential
   contents: read
 
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
 jobs:
   deploy:
-    name: azd up
+    name: azd deploy
     runs-on: ubuntu-latest
     environment: production
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
 
     steps:
       - uses: actions/checkout@v4
@@ -40,6 +47,7 @@ jobs:
           AZURE_RESOURCE_GROUP:        ${{ vars.AZURE_RESOURCE_GROUP }}
           AZURE_CLIENT_ID:             ${{ vars.AZURE_CLIENT_ID }}
           AZURE_TENANT_ID:             ${{ vars.AZURE_TENANT_ID }}
+          AZURE_CONTAINER_REGISTRY_ENDPOINT: ${{ vars.AZURE_CONTAINER_REGISTRY_ENDPOINT }}
           FOUNDRY_PROJECT_ENDPOINT:    ${{ vars.FOUNDRY_PROJECT_ENDPOINT }}
           FOUNDRY_MODEL:               ${{ vars.FOUNDRY_MODEL }}
           FOUNDRY_IMAGE_MODEL:         ${{ vars.FOUNDRY_IMAGE_MODEL }}
