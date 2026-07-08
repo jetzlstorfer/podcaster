@@ -1,5 +1,8 @@
 # Podcaster
 
+[![Lint and Build](https://github.com/jetzlstorfer/podcaster/actions/workflows/lint-and-build.yml/badge.svg)](https://github.com/jetzlstorfer/podcaster/actions/workflows/lint-and-build.yml)
+[![Deploy to Azure](https://github.com/jetzlstorfer/podcaster/actions/workflows/deploy.yml/badge.svg)](https://github.com/jetzlstorfer/podcaster/actions/workflows/deploy.yml)
+
 A multi-agent pipeline that turns a research question into a ready-to-play podcast — a two-host MP3 plus AI-generated episode cover art 🎙️
 
 ```mermaid
