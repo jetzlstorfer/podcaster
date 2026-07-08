@@ -21,6 +21,23 @@ jobs:
     runs-on: ubuntu-latest
     environment: production
     if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    env:
+      AZURE_ENV_NAME:                    ${{ vars.AZURE_ENV_NAME }}
+      AZURE_LOCATION:                    ${{ vars.AZURE_LOCATION }}
+      AZURE_SUBSCRIPTION_ID:             ${{ vars.AZURE_SUBSCRIPTION_ID }}
+      AZURE_RESOURCE_GROUP:              ${{ vars.AZURE_RESOURCE_GROUP }}
+      AZURE_CLIENT_ID:                   ${{ vars.AZURE_CLIENT_ID }}
+      AZURE_TENANT_ID:                   ${{ vars.AZURE_TENANT_ID }}
+      AZURE_CONTAINER_REGISTRY_ENDPOINT: ${{ vars.AZURE_CONTAINER_REGISTRY_ENDPOINT }}
+      AZURE_AI_PROJECT_ID:               ${{ vars.AZURE_AI_PROJECT_ID }}
+      FOUNDRY_PROJECT_ENDPOINT:          ${{ vars.FOUNDRY_PROJECT_ENDPOINT }}
+      FOUNDRY_MODEL:                     ${{ vars.FOUNDRY_MODEL }}
+      FOUNDRY_IMAGE_MODEL:               ${{ vars.FOUNDRY_IMAGE_MODEL }}
+      RESEARCHER_AGENT_NAME:             ${{ vars.RESEARCHER_AGENT_NAME }}
+      SCRIPTWRITER_AGENT_NAME:           ${{ vars.SCRIPTWRITER_AGENT_NAME }}
+      NARRATOR_AGENT_NAME:               ${{ vars.NARRATOR_AGENT_NAME }}
+      AUTH_CLIENT_ID:                    ${{ vars.AUTH_CLIENT_ID }}
+      AUTH_CLIENT_SECRET:                ${{ secrets.AUTH_CLIENT_SECRET }}
 
     steps:
       - uses: actions/checkout@v4
@@ -40,21 +57,3 @@ jobs:
 
       - name: Deploy
         run: azd deploy --no-prompt
-        env:
-          AZURE_ENV_NAME:              ${{ vars.AZURE_ENV_NAME }}
-          AZURE_LOCATION:              ${{ vars.AZURE_LOCATION }}
-          AZURE_SUBSCRIPTION_ID:       ${{ vars.AZURE_SUBSCRIPTION_ID }}
-          AZURE_RESOURCE_GROUP:        ${{ vars.AZURE_RESOURCE_GROUP }}
-          AZURE_CLIENT_ID:             ${{ vars.AZURE_CLIENT_ID }}
-          AZURE_TENANT_ID:             ${{ vars.AZURE_TENANT_ID }}
-          AZURE_CONTAINER_REGISTRY_ENDPOINT: ${{ vars.AZURE_CONTAINER_REGISTRY_ENDPOINT }}
-          AZURE_AI_PROJECT_ID:             ${{ vars.AZURE_AI_PROJECT_ID }}
-          FOUNDRY_PROJECT_ENDPOINT:    ${{ vars.FOUNDRY_PROJECT_ENDPOINT }}
-          FOUNDRY_MODEL:               ${{ vars.FOUNDRY_MODEL }}
-          FOUNDRY_IMAGE_MODEL:         ${{ vars.FOUNDRY_IMAGE_MODEL }}
-          RESEARCHER_AGENT_NAME:       ${{ vars.RESEARCHER_AGENT_NAME }}
-          SCRIPTWRITER_AGENT_NAME:     ${{ vars.SCRIPTWRITER_AGENT_NAME }}
-          NARRATOR_AGENT_NAME:         ${{ vars.NARRATOR_AGENT_NAME }}
-          # Optional Easy Auth — leave blank if not used
-          AUTH_CLIENT_ID:              ${{ vars.AUTH_CLIENT_ID }}
-          AUTH_CLIENT_SECRET:          ${{ secrets.AUTH_CLIENT_SECRET }}
