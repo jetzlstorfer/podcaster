@@ -46,7 +46,8 @@ function findResult(value: unknown): PodcastResult | null {
 }
 
 export interface RunCallbacks {
-  onStage?: (stage: Stage) => void;
+  onStageStarted?: (stage: Stage) => void;
+  onStageFinished?: (stage: Stage) => void;
   onResult?: (result: PodcastResult) => void;
   onError?: (error: Error) => void;
 }
@@ -86,7 +87,13 @@ export async function runPodcast(
           // those so an unknown name never blanks the progress indicator.
           const name = (event as { stepName?: string }).stepName;
           if (name && (STAGES as readonly string[]).includes(name)) {
-            callbacks.onStage?.(name as Stage);
+            callbacks.onStageStarted?.(name as Stage);
+          }
+        },
+        onStepFinishedEvent: ({ event }) => {
+          const name = (event as { stepName?: string }).stepName;
+          if (name && (STAGES as readonly string[]).includes(name)) {
+            callbacks.onStageFinished?.(name as Stage);
           }
         },
         onCustomEvent: ({ event }) => capture(event),

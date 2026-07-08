@@ -4,6 +4,7 @@ import { backendUrl, runPodcast } from "./api";
 import {
   Language,
   Length,
+  PARALLEL_STAGES,
   PodcastResult,
   STAGES,
   STAGE_LABELS,
@@ -31,27 +32,39 @@ export default function App(): React.JSX.Element {
   const [language, setLanguage] = useState<Language>("english");
 
   const [status, setStatus] = useState<Status>("idle");
-  const [activeStage, setActiveStage] = useState<Stage | null>(null);
+  const [startedStages, setStartedStages] = useState<Set<Stage>>(new Set());
+  const [doneStages, setDoneStages] = useState<Set<Stage>>(new Set());
   const [result, setResult] = useState<PodcastResult | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const isRunning = status === "running";
-  const activeIndex = activeStage ? STAGES.indexOf(activeStage) : -1;
-  // While running, never let an unknown/absent stage collapse the whole
-  // indicator: fall back to the first stage so a spinner always shows.
-  const currentIndex = isRunning && activeIndex < 0 ? 0 : activeIndex;
+  const activeStages = new Set(
+    [...startedStages].filter((stage) => !doneStages.has(stage)),
+  );
+  // Keep a visible active indicator while a run has started but no stage event
+  // has arrived yet.
+  if (isRunning && startedStages.size === 0) {
+    activeStages.add("parse");
+  }
+  const sequentialStages = STAGES.filter(
+    (stage) => !PARALLEL_STAGES.includes(stage),
+  );
 
   const handleGenerate = async () => {
     if (!topic.trim() || isRunning) return;
     setStatus("running");
-    setActiveStage(null);
+    setStartedStages(new Set());
+    setDoneStages(new Set());
     setResult(null);
     setError(null);
 
     await runPodcast(
       { topic: topic.trim(), length, language },
       {
-        onStage: (stage) => setActiveStage(stage),
+        onStageStarted: (stage) =>
+          setStartedStages((prev) => new Set([...prev, stage])),
+        onStageFinished: (stage) =>
+          setDoneStages((prev) => new Set([...prev, stage])),
         onResult: (r) => {
           setResult(r);
           setStatus("done");
@@ -133,13 +146,50 @@ export default function App(): React.JSX.Element {
         <section className="card">
           <h2>Progress</h2>
           <ol className="steps">
-            {STAGES.map((stage, i) => {
+            {sequentialStages.slice(0, 3).map((stage) => {
               const state =
                 status === "done"
                   ? "done"
-                  : i < currentIndex
+                  : doneStages.has(stage)
                     ? "done"
-                    : i === currentIndex
+                    : activeStages.has(stage)
+                      ? "active"
+                      : "pending";
+              return (
+                <li key={stage} className={`step step-${state}`}>
+                  <span className="dot" />
+                  {STAGE_LABELS[stage]}
+                </li>
+              );
+            })}
+            <li className="step-group">
+              <span className="group-label">In parallel</span>
+              <ul className="parallel-steps">
+                {PARALLEL_STAGES.map((stage) => {
+                  const state =
+                    status === "done"
+                      ? "done"
+                      : doneStages.has(stage)
+                        ? "done"
+                        : activeStages.has(stage)
+                          ? "active"
+                          : "pending";
+                  return (
+                    <li key={stage} className={`step step-${state}`}>
+                      <span className="dot" />
+                      {STAGE_LABELS[stage]}
+                    </li>
+                  );
+                })}
+              </ul>
+            </li>
+            {sequentialStages.slice(3).map((stage) => {
+              const state =
+                status === "done"
+                  ? "done"
+                  : doneStages.has(stage)
+                    ? "done"
+                    : activeStages.has(stage)
                       ? "active"
                       : "pending";
               return (
