@@ -140,6 +140,28 @@ select:focus {
   color: var(--muted);
 }
 
+.step-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.group-label {
+  color: var(--muted);
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.parallel-steps {
+  list-style: none;
+  margin: 0;
+  padding: 0 0 0 1rem;
+  display: grid;
+  gap: 0.5rem;
+  border-left: 1px solid var(--border);
+}
+
 .step .dot {
   width: 12px;
   height: 12px;

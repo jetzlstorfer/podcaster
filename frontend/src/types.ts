@@ -32,11 +32,19 @@ export const STAGES = [
   "finalize",
 ] as const;
 export type Stage = (typeof STAGES)[number];
+export const PARALLEL_STAGES: readonly Stage[] = ["narrate", "generate_image"];
+export const STAGE_GROUPS: ReadonlyArray<ReadonlyArray<Stage>> = [
+  ["parse"],
+  ["research"],
+  ["write_script"],
+  PARALLEL_STAGES,
+  ["finalize"],
+];
 
 export const STAGE_LABELS: Record<Stage, string> = {
-  parse: "Reading request",
-  research: "Researching",
-  write_script: "Writing script",
+  parse: "Reading user request",
+  research: "Researching on the topic",
+  write_script: "Writing podcast script",
   narrate: "Narrating audio",
   generate_image: "Generating cover art",
   finalize: "Finishing up",

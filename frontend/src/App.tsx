@@ -1,16 +1,27 @@
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 
 import { backendUrl, runPodcast } from "./api";
 import {
   Language,
   Length,
   PodcastResult,
-  STAGES,
+  STAGE_GROUPS,
   STAGE_LABELS,
   Stage,
 } from "./types";
 
 type Status = "idle" | "running" | "done" | "error";
+
+function getStageState(
+  stage: Stage,
+  status: Status,
+  doneStages: ReadonlySet<Stage>,
+  activeStages: ReadonlySet<Stage>,
+): "done" | "active" | "pending" {
+  if (status === "done" || doneStages.has(stage)) return "done";
+  if (activeStages.has(stage)) return "active";
+  return "pending";
+}
 
 /** Render a turn's text, styling inline performance cues like "[laughs]". */
 function renderTurnText(text: string): React.JSX.Element[] {
@@ -31,27 +42,36 @@ export default function App(): React.JSX.Element {
   const [language, setLanguage] = useState<Language>("english");
 
   const [status, setStatus] = useState<Status>("idle");
-  const [activeStage, setActiveStage] = useState<Stage | null>(null);
+  const [startedStages, setStartedStages] = useState<Set<Stage>>(new Set());
+  const [doneStages, setDoneStages] = useState<Set<Stage>>(new Set());
   const [result, setResult] = useState<PodcastResult | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const isRunning = status === "running";
-  const activeIndex = activeStage ? STAGES.indexOf(activeStage) : -1;
-  // While running, never let an unknown/absent stage collapse the whole
-  // indicator: fall back to the first stage so a spinner always shows.
-  const currentIndex = isRunning && activeIndex < 0 ? 0 : activeIndex;
+  const activeStages = useMemo(
+    () => new Set([...startedStages].filter((stage) => !doneStages.has(stage))),
+    [startedStages, doneStages],
+  );
+  const visibleActiveStages = useMemo(() => {
+    if (!isRunning || startedStages.size > 0) return activeStages;
+    return new Set<Stage>(["parse"]);
+  }, [activeStages, isRunning, startedStages.size]);
 
   const handleGenerate = async () => {
     if (!topic.trim() || isRunning) return;
     setStatus("running");
-    setActiveStage(null);
+    setStartedStages(new Set());
+    setDoneStages(new Set());
     setResult(null);
     setError(null);
 
     await runPodcast(
       { topic: topic.trim(), length, language },
       {
-        onStage: (stage) => setActiveStage(stage),
+        onStageStarted: (stage) =>
+          setStartedStages((prev) => new Set([...prev, stage])),
+        onStageFinished: (stage) =>
+          setDoneStages((prev) => new Set([...prev, stage])),
         onResult: (r) => {
           setResult(r);
           setStatus("done");
@@ -73,7 +93,7 @@ export default function App(): React.JSX.Element {
   return (
     <div className="page">
       <header className="hero">
-        <p className="eyebrow">AG-UI · Multi-agent</p>
+        <p className="eyebrow">Multi-agent</p>
         <h1>Podcaster</h1>
         <p className="subtitle">
           Turn any topic into a two-host podcast. Pick a length and language,
@@ -133,22 +153,37 @@ export default function App(): React.JSX.Element {
         <section className="card">
           <h2>Progress</h2>
           <ol className="steps">
-            {STAGES.map((stage, i) => {
-              const state =
-                status === "done"
-                  ? "done"
-                  : i < currentIndex
-                    ? "done"
-                    : i === currentIndex
-                      ? "active"
-                      : "pending";
-              return (
-                <li key={stage} className={`step step-${state}`}>
+            {STAGE_GROUPS.map((group) =>
+              group.length === 1 ? (
+                <li
+                  key={group[0]}
+                  className={`step step-${getStageState(group[0], status, doneStages, visibleActiveStages)}`}
+                >
                   <span className="dot" />
-                  {STAGE_LABELS[stage]}
+                  {STAGE_LABELS[group[0]]}
                 </li>
-              );
-            })}
+              ) : (
+                <li key={group.join("-")} className="step-group">
+                  <span className="group-label">In parallel</span>
+                  <ul className="parallel-steps">
+                    {group.map((stage) => {
+                      const state = getStageState(
+                        stage,
+                        status,
+                        doneStages,
+                        visibleActiveStages,
+                      );
+                      return (
+                        <li key={stage} className={`step step-${state}`}>
+                          <span className="dot" />
+                          {STAGE_LABELS[stage]}
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </li>
+              ),
+            )}
           </ol>
           {error && <p className="error">Error: {error}</p>}
         </section>
