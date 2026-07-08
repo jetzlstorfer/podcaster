@@ -42,9 +42,9 @@ export const STAGE_GROUPS: ReadonlyArray<ReadonlyArray<Stage>> = [
 ];
 
 export const STAGE_LABELS: Record<Stage, string> = {
-  parse: "Reading request",
-  research: "Researching",
-  write_script: "Writing script",
+  parse: "Reading user request",
+  research: "Researching on the topic",
+  write_script: "Writing podcast script",
   narrate: "Narrating audio",
   generate_image: "Generating cover art",
   finalize: "Finishing up",

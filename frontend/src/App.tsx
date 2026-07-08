@@ -93,7 +93,7 @@ export default function App(): React.JSX.Element {
   return (
     <div className="page">
       <header className="hero">
-        <p className="eyebrow">AG-UI · Multi-agent</p>
+        <p className="eyebrow">Multi-agent</p>
         <h1>Podcaster</h1>
         <p className="subtitle">
           Turn any topic into a two-host podcast. Pick a length and language,
