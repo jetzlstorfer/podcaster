@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 
 import { backendUrl, runPodcast } from "./api";
 import {
@@ -6,19 +6,24 @@ import {
   Length,
   PARALLEL_STAGES,
   PodcastResult,
-  STAGES,
   STAGE_LABELS,
   Stage,
 } from "./types";
 
 type Status = "idle" | "running" | "done" | "error";
-const PRE_PARALLEL_STAGES: readonly Stage[] = STAGES.slice(
-  0,
-  STAGES.indexOf(PARALLEL_STAGES[0]),
-);
-const POST_PARALLEL_STAGES: readonly Stage[] = STAGES.slice(
-  STAGES.indexOf(PARALLEL_STAGES[PARALLEL_STAGES.length - 1]) + 1,
-);
+const PRE_PARALLEL_STAGES: readonly Stage[] = ["parse", "research", "write_script"];
+const POST_PARALLEL_STAGES: readonly Stage[] = ["finalize"];
+
+function getStageState(
+  stage: Stage,
+  status: Status,
+  doneStages: ReadonlySet<Stage>,
+  activeStages: ReadonlySet<Stage>,
+): "done" | "active" | "pending" {
+  if (status === "done" || doneStages.has(stage)) return "done";
+  if (activeStages.has(stage)) return "active";
+  return "pending";
+}
 
 /** Render a turn's text, styling inline performance cues like "[laughs]". */
 function renderTurnText(text: string): React.JSX.Element[] {
@@ -45,8 +50,9 @@ export default function App(): React.JSX.Element {
   const [error, setError] = useState<string | null>(null);
 
   const isRunning = status === "running";
-  const activeStages = new Set(
-    [...startedStages].filter((stage) => !doneStages.has(stage)),
+  const activeStages = useMemo(
+    () => new Set([...startedStages].filter((stage) => !doneStages.has(stage))),
+    [startedStages, doneStages],
   );
   // Keep a visible active indicator while a run has started but no stage event
   // has arrived yet.
@@ -151,14 +157,7 @@ export default function App(): React.JSX.Element {
           <h2>Progress</h2>
           <ol className="steps">
             {PRE_PARALLEL_STAGES.map((stage) => {
-              const state =
-                status === "done"
-                  ? "done"
-                  : doneStages.has(stage)
-                    ? "done"
-                    : activeStages.has(stage)
-                      ? "active"
-                      : "pending";
+              const state = getStageState(stage, status, doneStages, activeStages);
               return (
                 <li key={stage} className={`step step-${state}`}>
                   <span className="dot" />
@@ -170,14 +169,12 @@ export default function App(): React.JSX.Element {
               <span className="group-label">In parallel</span>
               <ul className="parallel-steps">
                 {PARALLEL_STAGES.map((stage) => {
-                  const state =
-                    status === "done"
-                      ? "done"
-                      : doneStages.has(stage)
-                        ? "done"
-                        : activeStages.has(stage)
-                          ? "active"
-                          : "pending";
+                  const state = getStageState(
+                    stage,
+                    status,
+                    doneStages,
+                    activeStages,
+                  );
                   return (
                     <li key={stage} className={`step step-${state}`}>
                       <span className="dot" />
@@ -188,14 +185,7 @@ export default function App(): React.JSX.Element {
               </ul>
             </li>
             {POST_PARALLEL_STAGES.map((stage) => {
-              const state =
-                status === "done"
-                  ? "done"
-                  : doneStages.has(stage)
-                    ? "done"
-                    : activeStages.has(stage)
-                      ? "active"
-                      : "pending";
+              const state = getStageState(stage, status, doneStages, activeStages);
               return (
                 <li key={stage} className={`step step-${state}`}>
                   <span className="dot" />
