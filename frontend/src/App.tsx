@@ -94,7 +94,10 @@ export default function App(): React.JSX.Element {
     <div className="page">
       <header className="hero">
         <p className="eyebrow">Multi-agent</p>
-        <h1>🎙️ Podcaster</h1>
+        <div className="h1-wrapper">
+          <span className="emoji">🎙️</span>
+          <h1>Podcaster</h1>
+        </div>
         <p className="subtitle">
           Turn any topic into a two-host podcast.<br />Pick a length and language,
           then generate.
@@ -223,6 +226,19 @@ export default function App(): React.JSX.Element {
           </div>
         </section>
       )}
+
+      <footer className="site-footer">
+        <p>
+          made with ❤️ and 🤖<br />hosted on{" "}
+          <a
+            href="https://github.com/jetzlstorfer/podcaster"
+            target="_blank"
+            rel="noreferrer"
+          >
+            github
+          </a>
+        </p>
+      </footer>
     </div>
   );
 }

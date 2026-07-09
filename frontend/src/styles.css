@@ -34,6 +34,12 @@ body {
   text-align: center;
 }
 
+.h1-wrapper {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
 .eyebrow {
   text-transform: uppercase;
   letter-spacing: 0.15em;
@@ -49,6 +55,11 @@ body {
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
+}
+
+.emoji {
+  font-size: 2.6rem;
+  line-height: 1;
 }
 
 .subtitle {
@@ -273,4 +284,24 @@ select:focus {
   font-style: italic;
   opacity: 0.6;
   margin-left: 0.4rem;
+}
+
+.site-footer {
+  margin-top: 0.5rem;
+  text-align: center;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.site-footer p {
+  margin: 0;
+}
+
+.site-footer a {
+  color: var(--accent);
+  text-decoration: none;
+}
+
+.site-footer a:hover {
+  text-decoration: underline;
 }
