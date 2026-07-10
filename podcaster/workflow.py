@@ -11,6 +11,7 @@ of stalling until the whole pipeline completes.
 
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 import time
@@ -28,7 +29,7 @@ from typing_extensions import Never
 
 from podcaster import config
 from podcaster.agents.image_designer import run_image_designer
-from podcaster.agents.narrator import _safe_filename
+from podcaster.agents.narrator import _safe_filename, embed_cover_art
 from podcaster.orchestrator import narrate, research, write_script
 from podcaster.models import (
     ImageResult,
@@ -37,6 +38,7 @@ from podcaster.models import (
     PodcastScript,
     ResearchBrief,
 )
+from podcaster import storage
 
 logger = logging.getLogger(__name__)
 
@@ -177,12 +179,21 @@ class FinalizeExecutor(Executor):
         image = next((r for r in results if isinstance(r, ImageResult)), None)
         if narration is None:
             raise RuntimeError("Finalize expected a narration result but got none.")
+
+        audio_ref = narration.audio
+        if image is not None:
+            audio_ref = await _embed_cover_art_if_possible(
+                audio_ref=audio_ref,
+                image_ref=image.image,
+                title=narration.title,
+            )
+
         await ctx.yield_output(
             {
                 "title": narration.title,
                 "turns": narration.turns,
                 "language": narration.language,
-                "audio": narration.audio,
+                "audio": audio_ref,
                 "image": image.image if image else "[Image skipped: no result]",
                 "script": [
                     {"speaker": t.speaker, "text": t.text, "style": t.style}
@@ -190,6 +201,56 @@ class FinalizeExecutor(Executor):
                 ],
             }
         )
+
+
+async def _embed_cover_art_if_possible(
+    *,
+    audio_ref: str,
+    image_ref: str,
+    title: str,
+) -> str:
+    """Embed image_ref as MP3 cover art when both assets are valid local outputs."""
+    if not audio_ref.startswith("/audio/") or not image_ref.startswith("/images/"):
+        return audio_ref
+
+    image_name = Path(image_ref).name
+    image_path = Path(config.OUTPUT_DIR) / image_name
+    if not image_path.is_file():
+        return audio_ref
+
+    try:
+        cover_bytes = await asyncio.to_thread(image_path.read_bytes)
+        audio_name = Path(audio_ref).name
+        if storage.storage_configured():
+            if not await asyncio.to_thread(storage.blob_exists, audio_name):
+                return audio_ref
+            original_audio = await asyncio.to_thread(
+                lambda: b"".join(storage.download_stream(audio_name))
+            )
+            updated_audio = await asyncio.to_thread(
+                embed_cover_art, original_audio, cover_bytes, title=title
+            )
+            await asyncio.to_thread(
+                storage.upload_bytes, updated_audio, audio_name, content_type="audio/mpeg"
+            )
+            logger.info("[finalize] embedded cover art into blob audio %s", audio_name)
+            return audio_ref
+
+        audio_name = Path(audio_ref).name
+        audio_path = Path(config.OUTPUT_DIR) / audio_name
+        if not audio_path.is_file():
+            return audio_ref
+
+        original_audio = await asyncio.to_thread(audio_path.read_bytes)
+        updated_audio = await asyncio.to_thread(
+            embed_cover_art, original_audio, cover_bytes, title=title
+        )
+        await asyncio.to_thread(audio_path.write_bytes, updated_audio)
+        logger.info("[finalize] embedded cover art into local audio %s", audio_path)
+    except Exception as exc:  # noqa: BLE001 - enrichment must never break final output
+        logger.warning("[finalize] failed to embed cover art: %s", exc)
+
+    return audio_ref
 
 
 def _save_script(script: PodcastScript) -> Path:

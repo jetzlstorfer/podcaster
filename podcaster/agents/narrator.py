@@ -5,6 +5,7 @@ import html
 import logging
 import re
 import time
+from tempfile import NamedTemporaryFile
 from pathlib import Path
 
 import requests
@@ -298,6 +299,45 @@ async def run_narrator(
 def audio_blob_name(script: PodcastScript) -> str:
     """Deterministic ``.mp3`` blob name for a script (safe title slug)."""
     return f"{_safe_filename(script.title)}.mp3"
+
+
+def embed_cover_art(
+    mp3_bytes: bytes,
+    cover_png_bytes: bytes,
+    *,
+    title: str | None = None,
+) -> bytes:
+    """Embed PNG cover art (and optional title) into MP3 ID3 tags.
+
+    Returns updated MP3 bytes. Existing APIC (cover-art) tags are replaced.
+    """
+    from mutagen.id3 import APIC, ID3, TIT2
+    from mutagen.mp3 import MP3
+
+    with NamedTemporaryFile(suffix=".mp3") as tmp:
+        tmp_path = Path(tmp.name)
+        tmp_path.write_bytes(mp3_bytes)
+
+        audio = MP3(str(tmp_path))
+        if audio.tags is None:
+            audio.tags = ID3()
+
+        audio.tags.delall("APIC")
+        audio.tags.add(
+            APIC(
+                encoding=3,
+                mime="image/png",
+                type=3,
+                desc="Cover",
+                data=cover_png_bytes,
+            )
+        )
+        if title:
+            audio.tags.delall("TIT2")
+            audio.tags.add(TIT2(encoding=3, text=title))
+
+        audio.save(v2_version=3)
+        return tmp_path.read_bytes()
 
 
 def _synthesize(url: str, ssml: str) -> bytes:

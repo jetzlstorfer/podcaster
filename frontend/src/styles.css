@@ -216,6 +216,31 @@ select:focus {
   width: 100%;
 }
 
+.result-actions {
+  display: flex;
+  justify-content: flex-start;
+}
+
+.download {
+  padding: 0.55rem 0.85rem;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: #12141c;
+  color: var(--text);
+  font: inherit;
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+
+.download:hover:not(:disabled) {
+  border-color: var(--accent);
+}
+
+.download:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 .cover {
   display: block;
   width: 100%;

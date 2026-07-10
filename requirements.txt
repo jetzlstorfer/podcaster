@@ -9,6 +9,7 @@ azure-identity
 azure-storage-blob
 pydantic
 requests
+mutagen
 python-dotenv
 debugpy
 pytest

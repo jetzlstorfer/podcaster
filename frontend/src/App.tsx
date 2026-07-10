@@ -46,6 +46,7 @@ export default function App(): React.JSX.Element {
   const [doneStages, setDoneStages] = useState<Set<Stage>>(new Set());
   const [result, setResult] = useState<PodcastResult | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [isDownloading, setIsDownloading] = useState(false);
 
   const isRunning = status === "running";
   const activeStages = useMemo(
@@ -89,6 +90,34 @@ export default function App(): React.JSX.Element {
 
   const audioIsUrl = result?.audio?.startsWith("/audio/");
   const imageIsUrl = result?.image?.startsWith("/images/");
+
+  const handleDownload = async () => {
+    if (!result || !audioIsUrl || isDownloading) return;
+
+    setIsDownloading(true);
+    try {
+      const response = await fetch(backendUrl + result.audio);
+      if (!response.ok) {
+        throw new Error(`Download failed (${response.status})`);
+      }
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${result.title
+        .replace(/[^\w\s-]/g, "")
+        .trim()
+        .replace(/\s+/g, "_") || "podcast"}.mp3`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setIsDownloading(false);
+    }
+  };
 
   return (
     <div className="page">
@@ -208,7 +237,18 @@ export default function App(): React.JSX.Element {
           )}
 
           {audioIsUrl ? (
-            <audio className="player" controls src={backendUrl + result.audio} />
+            <>
+              <audio className="player" controls src={backendUrl + result.audio} />
+              <div className="result-actions">
+                <button
+                  className="download"
+                  onClick={handleDownload}
+                  disabled={isDownloading}
+                >
+                  {isDownloading ? "Downloading…" : "Download episode (.mp3)"}
+                </button>
+              </div>
+            </>
           ) : (
             <p className="note">{result.audio}</p>
           )}
