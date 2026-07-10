@@ -34,6 +34,12 @@
     },
     "authClientSecret": {
       "value": "${AUTH_CLIENT_SECRET=}"
+    },
+    "azureSpeechEndpoint": {
+      "value": "${AZURE_SPEECH_ENDPOINT=}"
+    },
+    "azureSpeechResourceId": {
+      "value": "${AZURE_SPEECH_RESOURCE_ID=}"
     }
   }
 }

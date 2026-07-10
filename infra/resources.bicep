@@ -18,6 +18,12 @@ param authClientId string = ''
 @secure()
 param authClientSecret string = ''
 
+@description('Regional Azure Speech TTS endpoint. Empty = narrator skipped on Azure.')
+param azureSpeechEndpoint string = ''
+
+@description('ARM resource ID of the Speech account used for Entra ID TTS auth (aad#<id>#<token>).')
+param azureSpeechResourceId string = ''
+
 @description('Blob container for generated podcast audio (private).')
 param audioContainerName string = 'audio'
 
@@ -204,6 +210,9 @@ resource web 'Microsoft.App/containerApps@2024-03-01' = {
             { name: 'RESEARCHER_AGENT_NAME', value: researcherAgentName }
             { name: 'SCRIPTWRITER_AGENT_NAME', value: scriptwriterAgentName }
             { name: 'NARRATOR_AGENT_NAME', value: narratorAgentName }
+            { name: 'AZURE_SPEECH_ENDPOINT', value: azureSpeechEndpoint }
+            { name: 'AZURE_SPEECH_RESOURCE_ID', value: azureSpeechResourceId }
+            { name: 'USE_SPEECH_ENTRA_AUTH', value: 'true' }
             { name: 'APPLICATIONINSIGHTS_CONNECTION_STRING', value: appInsights.properties.ConnectionString }
           ]
         }

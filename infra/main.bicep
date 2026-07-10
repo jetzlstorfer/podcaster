@@ -33,6 +33,12 @@ param authClientId string = ''
 @description('Entra app client secret for Easy Auth (required when authClientId is set).')
 param authClientSecret string = ''
 
+@description('Regional Azure Speech TTS endpoint (e.g. https://<region>.tts.speech.microsoft.com/). Empty = narrator skipped.')
+param azureSpeechEndpoint string = ''
+
+@description('ARM resource ID of the Azure Speech account — required for Entra ID auth (aad#<id>#<token> format). E.g. /subscriptions/<sub>/resourceGroups/<rg>/providers/Microsoft.CognitiveServices/accounts/<name>.')
+param azureSpeechResourceId string = ''
+
 var tags = { 'azd-env-name': environmentName }
 
 resource rg 'Microsoft.Resources/resourceGroups@2022-09-01' = {
@@ -56,6 +62,8 @@ module resources 'resources.bicep' = {
     foundryImageModel: foundryImageModel
     authClientId: authClientId
     authClientSecret: authClientSecret
+    azureSpeechEndpoint: azureSpeechEndpoint
+    azureSpeechResourceId: azureSpeechResourceId
   }
 }
 
@@ -66,3 +74,4 @@ output SERVICE_WEB_ENDPOINT_URL string = resources.outputs.webUri
 output AZURE_STORAGE_ACCOUNT_URL string = resources.outputs.storageAccountUrl
 output AZURE_STORAGE_CONTAINER string = resources.outputs.audioContainerName
 output WEB_IDENTITY_PRINCIPAL_ID string = resources.outputs.webIdentityPrincipalId
+output WEB_IDENTITY_CLIENT_ID string = resources.outputs.webIdentityClientId
