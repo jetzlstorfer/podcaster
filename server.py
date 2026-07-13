@@ -139,21 +139,30 @@ def _resolve_image_ref(base_name: str) -> str | None:
     return None
 
 
-def _episode_payload(path: Path) -> dict:
-    data = json.loads(path.read_text(encoding="utf-8"))
+def _episode_payload(data: dict, *, episode_id: str, updated: int) -> dict:
     turns = data.get("turns")
     script = turns if isinstance(turns, list) else []
-    base_name = path.stem
+    base_name = Path(episode_id).stem
     return {
-        "id": path.name,
+        "id": episode_id,
         "title": data.get("title") or base_name,
         "language": data.get("language") or "english",
         "turns": len(script),
         "audio": _resolve_audio_ref(base_name),
         "image": _resolve_image_ref(base_name),
         "script": script,
-        "updated": int(path.stat().st_mtime),
+        "updated": updated,
     }
+
+
+def _episode_payload_from_path(path: Path) -> dict:
+    data = json.loads(path.read_text(encoding="utf-8"))
+    return _episode_payload(data, episode_id=path.name, updated=int(path.stat().st_mtime))
+
+
+def _episode_payload_from_blob(blob_name: str, updated: int) -> dict:
+    data = json.loads(storage.download_bytes(blob_name).decode("utf-8"))
+    return _episode_payload(data, episode_id=blob_name, updated=updated)
 
 
 @app.get("/audio/{blob_name}")
@@ -174,11 +183,37 @@ async def get_audio(blob_name: str):
 
 @app.get("/episodes")
 async def list_episodes() -> list[dict]:
-    episodes: list[dict] = []
+    summaries_by_id: dict[str, dict] = {}
+
+    if storage.storage_configured():
+        try:
+            for blob in storage.list_blobs(suffix=".json"):
+                try:
+                    blob_name = str(blob["name"])
+                    payload = _episode_payload_from_blob(
+                        blob_name,
+                        int(blob.get("updated") or 0),
+                    )
+                    summaries_by_id[payload["id"]] = {
+                        "id": payload["id"],
+                        "title": payload["title"],
+                        "language": payload["language"],
+                        "turns": payload["turns"],
+                        "audio": payload["audio"],
+                        "image": payload["image"],
+                        "updated": payload["updated"],
+                    }
+                except (OSError, ValueError, TypeError, UnicodeDecodeError):
+                    continue
+        except Exception:
+            # Fall back to local files if blob listing is unavailable.
+            pass
+
     for path in _output_dir.glob("*.json"):
         try:
-            payload = _episode_payload(path)
-            episodes.append(
+            payload = _episode_payload_from_path(path)
+            summaries_by_id.setdefault(
+                payload["id"],
                 {
                     "id": payload["id"],
                     "title": payload["title"],
@@ -187,11 +222,12 @@ async def list_episodes() -> list[dict]:
                     "audio": payload["audio"],
                     "image": payload["image"],
                     "updated": payload["updated"],
-                }
+                },
             )
         except (OSError, ValueError, TypeError):
             # Ignore malformed or partial files while listing history.
             continue
+    episodes = list(summaries_by_id.values())
     episodes.sort(key=lambda item: item["updated"], reverse=True)
     return episodes
 
@@ -200,11 +236,26 @@ async def list_episodes() -> list[dict]:
 async def get_episode(episode_name: str) -> dict:
     if not _EPISODE_NAME_RE.match(episode_name):
         raise HTTPException(status_code=400, detail="Invalid episode name")
+
+    if storage.storage_configured() and storage.blob_exists(episode_name):
+        try:
+            payload = _episode_payload_from_blob(episode_name, updated=0)
+            return {
+                "title": payload["title"],
+                "turns": payload["turns"],
+                "language": payload["language"],
+                "audio": payload["audio"],
+                "image": payload["image"],
+                "script": payload["script"],
+            }
+        except (OSError, ValueError, TypeError, UnicodeDecodeError):
+            raise HTTPException(status_code=500, detail="Failed to read episode")
+
     path = _output_dir / episode_name
     if not path.is_file():
         raise HTTPException(status_code=404, detail="Episode not found")
     try:
-        payload = _episode_payload(path)
+        payload = _episode_payload_from_path(path)
     except (OSError, ValueError, TypeError):
         raise HTTPException(status_code=500, detail="Failed to read episode")
     return {

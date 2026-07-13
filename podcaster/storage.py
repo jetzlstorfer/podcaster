@@ -16,6 +16,7 @@ from __future__ import annotations
 import base64
 import json
 import logging
+from datetime import datetime
 from collections.abc import Iterator
 
 from azure.core.exceptions import HttpResponseError
@@ -125,3 +126,34 @@ def blob_exists(blob_name: str, *, container: str | None = None) -> bool:
     """Whether ``container``/``blob_name`` exists."""
     container = container or config.AZURE_STORAGE_CONTAINER
     return _client().get_blob_client(container=container, blob=blob_name).exists()
+
+
+def download_bytes(blob_name: str, *, container: str | None = None) -> bytes:
+    """Download and return all bytes for ``container``/``blob_name``."""
+    container = container or config.AZURE_STORAGE_CONTAINER
+    blob = _client().get_blob_client(container=container, blob=blob_name)
+    return blob.download_blob(max_concurrency=1).readall()
+
+
+def list_blobs(
+    *,
+    container: str | None = None,
+    suffix: str | None = None,
+) -> list[dict[str, int | str]]:
+    """List blobs in ``container``, optionally filtering by suffix.
+
+    Returns dicts with ``name`` and Unix ``updated`` timestamp.
+    """
+    container = container or config.AZURE_STORAGE_CONTAINER
+    container_client = _client().get_container_client(container=container)
+    items: list[dict[str, int | str]] = []
+    for blob in container_client.list_blobs():
+        if suffix and not blob.name.endswith(suffix):
+            continue
+        updated = blob.last_modified
+        if isinstance(updated, datetime):
+            updated_ts = int(updated.timestamp())
+        else:
+            updated_ts = 0
+        items.append({"name": blob.name, "updated": updated_ts})
+    return items

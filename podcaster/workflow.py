@@ -96,6 +96,11 @@ class ScriptExecutor(Executor):
         started = time.perf_counter()
         script = await write_script(brief)
         script_path = _save_script(script)
+        if storage.storage_configured():
+            try:
+                await asyncio.to_thread(_save_script_blob, script)
+            except Exception as exc:  # noqa: BLE001 - history persistence is best effort
+                logger.warning("[write_script] failed to persist script blob: %s", exc)
         logger.info(
             "[write_script] done in %.1fs — %r, %d turns (saved to %s)",
             time.perf_counter() - started,
@@ -264,6 +269,17 @@ def _save_script(script: PodcastScript) -> Path:
     path = out_dir / f"{_safe_filename(script.title)}.json"
     path.write_text(script.model_dump_json(indent=2), encoding="utf-8")
     return path
+
+
+def _save_script_blob(script: PodcastScript) -> str:
+    """Persist the generated script JSON to blob storage in cloud mode."""
+    blob_name = f"{_safe_filename(script.title)}.json"
+    payload = script.model_dump_json(indent=2).encode("utf-8")
+    return storage.upload_bytes(
+        payload,
+        blob_name,
+        content_type="application/json; charset=utf-8",
+    )
 
 
 def _parse_request(message: str) -> PodcastRequest:
