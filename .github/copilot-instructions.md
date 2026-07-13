@@ -14,7 +14,7 @@ make clean            # Remove __pycache__, output/ artifacts (mp3/png/json), ve
 python -m pytest -v tests/test_narrator.py::test_narrator_generates_mp3
 ```
 
-Tests require `AZURE_SPEECH_ENDPOINT` and `az login`; the suite auto-skips audio tests when that env var is not set.
+Tests require `AZURE_SPEECH_ENDPOINT` and `az login`; the suite auto-skips audio tests when that env var is not set. Image integration is opt-in via `RUN_IMAGE_INTEGRATION=1`.
 
 ## Architecture
 
@@ -25,7 +25,7 @@ topic → ParseRequestExecutor → ResearchExecutor → ScriptExecutor → ┬�
                                                                   └→ ImageExecutor    ┘
 ```
 
-Each stage is an `Executor` subclass wired via `WorkflowBuilder`. The graph workflow (not the functional `@workflow`) is used so devui streams per-stage progress events. `ParseRequestExecutor` decodes the incoming `{topic, length, language}` JSON (or a bare topic) into a `PodcastRequest`. After the script is written the graph **fans out** to two parallel branches (narration + cover art) via `add_fan_out_edges`, then **fans in** to `FinalizeExecutor` via `add_fan_in_edges` (which receives a `list` of both branch results once both complete).
+Each stage is an `Executor` subclass wired via `WorkflowBuilder`. The graph workflow (not the functional `@workflow`) is used so devui streams per-stage progress events. `ParseRequestExecutor` decodes the incoming `{topic, length, language}` JSON (or a bare topic) into a `PodcastRequest`. After the script is written the graph **fans out** to two parallel branches (narration + cover art) via `add_fan_out_edges`, then **fans in** to `FinalizeExecutor` via `add_fan_in_edges` (which receives a `list` of both branch results once both complete). Finalize also attempts to embed the generated PNG cover into the MP3 ID3 tags when both assets are available.
 
 Executors call `podcaster/orchestrator.py` (`research` / `write_script` / `narrate`), which runs each stage **in-process** by default or invokes a **deployed Foundry hosted agent** when the stage's `*_AGENT_NAME` env var is set.
 
@@ -35,6 +35,8 @@ Executors call `podcaster/orchestrator.py` (`research` / `write_script` / `narra
 - **Image designer** (`podcaster/agents/image_designer.py`): art-director `Agent` writes a text-to-image prompt → MAI image model (`FOUNDRY_IMAGE_MODEL`, same Foundry project) via the documented **MAI images REST API** (`POST {account}/mai/v1/images/generations`, body `{model, prompt, width, height}`, always returns PNG) → writes PNG to `output/`
 
 The narrator is **optional** — if `AZURE_SPEECH_ENDPOINT` is not configured the pipeline still runs and the audio step emits a skip message instead of raising. The image designer is likewise **optional and non-blocking**: `ImageExecutor` swallows *all* exceptions into an `[Image skipped: …]` message, because the fan-in barrier only fires once **both** branches complete — an unhandled exception in either branch would stall the whole workflow.
+
+`server.py` exposes: `POST /podcast` (AG-UI stream), `GET /audio/{name}.mp3`, `GET /images/{name}.png`, `GET /episodes`, `GET /episodes/{name}.json`, and `/healthz`. Episode history merges local `output/*.json` with blob-backed scripts (when storage is configured).
 
 ## Key Conventions
 

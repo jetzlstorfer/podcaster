@@ -3,7 +3,7 @@
 [![Lint and Build](https://github.com/jetzlstorfer/podcaster/actions/workflows/lint-and-build.yml/badge.svg)](https://github.com/jetzlstorfer/podcaster/actions/workflows/lint-and-build.yml)
 [![Deploy to Azure](https://github.com/jetzlstorfer/podcaster/actions/workflows/deploy.yml/badge.svg)](https://github.com/jetzlstorfer/podcaster/actions/workflows/deploy.yml)
 
-A multi-agent pipeline that turns a research question into a ready-to-play podcast — a two-host MP3 plus AI-generated episode cover art 🎙️
+A multi-agent pipeline that turns a research question into a ready-to-play podcast — a two-host MP3 (with embedded cover art when available) plus AI-generated episode cover art 🎙️
 
 ```mermaid
 flowchart TD
@@ -26,7 +26,7 @@ non-blocking — any failure becomes a skip message so it never stalls the join.
 | **Parse** | Decodes the incoming `{topic, length, language}` request (or a bare topic) into a `PodcastRequest` |
 | **Researcher** | Uses the Foundry native web-search tool to gather real-time facts and sources → `ResearchBrief` |
 | **Scriptwriter** | Writes a natural two-host dialogue (Alex ♂ / Jordan ♀) with intro, discussion, and outro → `PodcastScript` |
-| **Narrator** | Synthesises the script to MP3 using **MAI-Voice-2** voices via the Azure Speech REST API *(optional)* |
+| **Narrator** | Synthesises the script to MP3 using **MAI-Voice-2** voices via the Azure Speech REST API *(optional; cover art is embedded into the MP3 at finalize when available)* |
 | **Image designer** | Art-director agent writes a text-to-image prompt, then a **MAI image model** renders PNG cover art *(optional)* |
 
 Built with **Microsoft Agent Framework** (`agent-framework-foundry`) and **Microsoft Foundry** (project `podcaster`, model `gpt-5-mini`).
@@ -107,9 +107,16 @@ Then open http://127.0.0.1:5173. The UI defaults to the backend at
 `frontend/.env.example`).
 
 - **Backend** — `server.py` mounts the workflow at `POST /podcast` via
-  `add_agent_framework_fastapi_endpoint`, serves generated audio from `/audio`
-  and cover art from `/images`, and exposes `/healthz`. When built, it also
+  `add_agent_framework_fastapi_endpoint`, serves generated audio from `/audio`,
+  cover art from `/images`, episode history from `GET /episodes` and
+  `GET /episodes/{episode}.json`, and exposes `/healthz`. When built, it also
   serves the React SPA (`frontend/dist`) at `/`.
+- **History source** — `GET /episodes` merges local `output/*.json` scripts with
+  blob-backed scripts (when `AZURE_STORAGE_ACCOUNT_URL` is configured), sorted
+  by most recently updated.
+- **CORS defaults** — local Vite origins are allowed by default, plus a regex
+  that permits common forwarded-dev URLs (Codespaces, tunnels, Gitpod).
+  Override with `CORS_ORIGINS` and `CORS_ORIGIN_REGEX`.
 - **Request shape** — the UI sends `{ "topic", "length", "language" }` as the
   message content; the workflow's `parse` stage validates it into a
   `PodcastRequest`. Plain-text messages still work and fall back to defaults.
@@ -131,8 +138,9 @@ azd up              # provision infra + deploy all services
 
 Setting the `*_AGENT_NAME` env vars on the web app routes each stage to its
 deployed hosted agent; leaving them blank runs every stage in-process. Generated
-audio is uploaded to a private blob container and streamed back through the
-backend's `/audio` proxy (see `AZURE_STORAGE_ACCOUNT_URL`).
+audio and script JSON can be uploaded to a private blob container and streamed
+back through the backend's `/audio` + `/episodes` APIs (see
+`AZURE_STORAGE_ACCOUNT_URL`).
 
 ---
 
@@ -203,6 +211,8 @@ Podcaster/
 | `RESEARCHER_AGENT_NAME` / `SCRIPTWRITER_AGENT_NAME` / `NARRATOR_AGENT_NAME` | Optional | Route a stage to a **deployed** Foundry hosted agent instead of running it in-process (blank = local/in-process) |
 | `AZURE_STORAGE_ACCOUNT_URL` | Optional | When set, the narrator uploads MP3s to a private blob container served via `/audio` (blank = local files) |
 | `AZURE_STORAGE_CONTAINER` | Optional | Blob container name for audio (default: `audio`) |
+| `CORS_ORIGINS` | Optional | Comma-separated allowlist for exact origins (default: `http://127.0.0.1:5173,http://localhost:5173`) |
+| `CORS_ORIGIN_REGEX` | Optional | Regex allowlist for additional origins (defaults include localhost + common forwarded-dev domains) |
 | `LOG_LEVEL` | Optional | Console log verbosity (default: `INFO`) |
 | `ENABLE_OTEL` | Optional | `true` to enable Microsoft Agent Framework OpenTelemetry (default: `false`) |
 
@@ -271,9 +281,10 @@ The tests in [`tests/test_narrator.py`](tests/test_narrator.py) are **integratio
 tests** — they call the Azure Speech API and write real MP3s to `output/`. They
 require `AZURE_SPEECH_ENDPOINT` (and `az login`); if the endpoint isn't
 configured the tests are **skipped** so the suite still passes without Azure
-access. [`tests/test_image_designer.py`](tests/test_image_designer.py) covers the
-art-director prompt + MAI image call, and [`tests/test_pipeline.py`](tests/test_pipeline.py)
-holds fast unit tests (request parsing, length specs, language SSML).
+access. [`tests/test_image_designer.py`](tests/test_image_designer.py) is also an
+integration test but intentionally **opt-in**: set `RUN_IMAGE_INTEGRATION=1` to
+run it. [`tests/test_pipeline.py`](tests/test_pipeline.py) holds fast unit tests
+(request parsing, length specs, language SSML).
 
 ---
 
