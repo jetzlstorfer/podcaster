@@ -22,6 +22,16 @@ export interface PodcastResult {
   script: ScriptTurn[];
 }
 
+export interface EpisodeSummary {
+  id: string;
+  title: string;
+  language: Language;
+  turns: number;
+  audio: string;
+  image?: string;
+  updated: number;
+}
+
 /** Pipeline stages, in order, matching the backend executor ids. */
 export const STAGES = [
   "parse",

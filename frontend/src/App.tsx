@@ -1,7 +1,8 @@
-import React, { useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 
-import { backendUrl, runPodcast } from "./api";
+import { backendUrl, getEpisode, listEpisodes, runPodcast } from "./api";
 import {
+  EpisodeSummary,
   Language,
   Length,
   PodcastResult,
@@ -47,6 +48,9 @@ export default function App(): React.JSX.Element {
   const [result, setResult] = useState<PodcastResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isDownloading, setIsDownloading] = useState(false);
+  const [episodes, setEpisodes] = useState<EpisodeSummary[]>([]);
+  const [episodesLoading, setEpisodesLoading] = useState(false);
+  const [selectedEpisodeId, setSelectedEpisodeId] = useState<string | null>(null);
 
   const isRunning = status === "running";
   const activeStages = useMemo(
@@ -57,6 +61,37 @@ export default function App(): React.JSX.Element {
     if (!isRunning || startedStages.size > 0) return activeStages;
     return new Set<Stage>(["parse"]);
   }, [activeStages, isRunning, startedStages.size]);
+
+  const loadEpisodes = useCallback(async () => {
+    setEpisodesLoading(true);
+    try {
+      const data = await listEpisodes();
+      setEpisodes(data);
+    } catch {
+      // History loading should not block generation UI.
+    } finally {
+      setEpisodesLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void loadEpisodes();
+  }, [loadEpisodes]);
+
+  const handleOpenEpisode = async (episodeId: string) => {
+    if (isRunning) return;
+    setSelectedEpisodeId(episodeId);
+    setError(null);
+    try {
+      const episode = await getEpisode(episodeId);
+      setResult(episode);
+      setStatus("done");
+      setStartedStages(new Set());
+      setDoneStages(new Set());
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    }
+  };
 
   const handleGenerate = async () => {
     if (!topic.trim() || isRunning) return;
@@ -76,6 +111,7 @@ export default function App(): React.JSX.Element {
         onResult: (r) => {
           setResult(r);
           setStatus("done");
+          void loadEpisodes();
         },
         onError: (err) => {
           setError(err.message);
@@ -120,8 +156,38 @@ export default function App(): React.JSX.Element {
   };
 
   return (
-    <div className="page">
-      <header className="hero">
+    <div className="layout">
+      <aside className="sidebar card">
+        <div className="sidebar-header">
+          <h2>Episode Library</h2>
+          <button className="sidebar-refresh" onClick={() => void loadEpisodes()}>
+            Refresh
+          </button>
+        </div>
+        {episodesLoading && <p className="sidebar-note">Loading episodes…</p>}
+        {!episodesLoading && episodes.length === 0 && (
+          <p className="sidebar-note">No generated episodes yet.</p>
+        )}
+        <ul className="episode-list">
+          {episodes.map((episode) => (
+            <li key={episode.id}>
+              <button
+                className={`episode-item ${selectedEpisodeId === episode.id ? "episode-item-active" : ""}`}
+                onClick={() => void handleOpenEpisode(episode.id)}
+                disabled={isRunning}
+              >
+                <span className="episode-title">{episode.title}</span>
+                <span className="episode-meta">
+                  {episode.turns} turns · {episode.language}
+                </span>
+              </button>
+            </li>
+          ))}
+        </ul>
+      </aside>
+
+      <main className="page">
+        <header className="hero">
         <p className="eyebrow">Multi-agent</p>
         <div className="h1-wrapper">
           <span className="emoji">🎙️</span>
@@ -131,9 +197,9 @@ export default function App(): React.JSX.Element {
           Turn any topic into a two-host podcast.<br />Pick a length and language,
           then generate.
         </p>
-      </header>
+        </header>
 
-      <section className="card">
+        <section className="card">
         <label className="field">
           <span>Topic</span>
           <textarea
@@ -179,10 +245,10 @@ export default function App(): React.JSX.Element {
         >
           {isRunning ? "Generating…" : "Generate podcast"}
         </button>
-      </section>
+        </section>
 
-      {status !== "idle" && (
-        <section className="card">
+        {status !== "idle" && (
+          <section className="card">
           <h2>Progress</h2>
           <ol className="steps">
             {STAGE_GROUPS.map((group) =>
@@ -218,11 +284,11 @@ export default function App(): React.JSX.Element {
             )}
           </ol>
           {error && <p className="error">Error: {error}</p>}
-        </section>
-      )}
+          </section>
+        )}
 
-      {result && (
-        <section className="card">
+        {result && (
+          <section className="card">
           <h2>{result.title}</h2>
           <p className="meta">
             {result.turns} turns · {result.language}
@@ -264,21 +330,22 @@ export default function App(): React.JSX.Element {
               </p>
             ))}
           </div>
-        </section>
-      )}
+          </section>
+        )}
 
-      <footer className="site-footer">
-        <p>
-          made with ❤️ and 🤖<br />hosted on{" "}
-          <a
-            href="https://github.com/jetzlstorfer/podcaster"
-            target="_blank"
-            rel="noreferrer"
-          >
-            github
-          </a>
-        </p>
-      </footer>
+        <footer className="site-footer">
+          <p>
+            made with ❤️ and 🤖<br />hosted on{" "}
+            <a
+              href="https://github.com/jetzlstorfer/podcaster"
+              target="_blank"
+              rel="noreferrer"
+            >
+              github
+            </a>
+          </p>
+        </footer>
+      </main>
     </div>
   );
 }

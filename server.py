@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import os
 import re
+import json
 from collections.abc import AsyncIterator
 from pathlib import Path
 
@@ -115,6 +116,44 @@ _output_dir.mkdir(parents=True, exist_ok=True)
 # Only a bare `<name>.mp3` is accepted — no slashes — which blocks path
 # traversal and blob-name injection.
 _AUDIO_NAME_RE = re.compile(r"^[\w.\-]+\.mp3$")
+_EPISODE_NAME_RE = re.compile(r"^[\w.\-]+\.json$")
+
+
+def _resolve_audio_ref(base_name: str) -> str:
+    blob_name = f"{base_name}.mp3"
+    if storage.storage_configured():
+        if storage.blob_exists(blob_name):
+            return f"/audio/{blob_name}"
+        return "[Audio not found for this episode]"
+    path = _output_dir / blob_name
+    if path.is_file():
+        return f"/audio/{blob_name}"
+    return "[Audio not found for this episode]"
+
+
+def _resolve_image_ref(base_name: str) -> str | None:
+    image_name = f"{base_name}.png"
+    path = _output_dir / image_name
+    if path.is_file():
+        return f"/images/{image_name}"
+    return None
+
+
+def _episode_payload(path: Path) -> dict:
+    data = json.loads(path.read_text(encoding="utf-8"))
+    turns = data.get("turns")
+    script = turns if isinstance(turns, list) else []
+    base_name = path.stem
+    return {
+        "id": path.name,
+        "title": data.get("title") or base_name,
+        "language": data.get("language") or "english",
+        "turns": len(script),
+        "audio": _resolve_audio_ref(base_name),
+        "image": _resolve_image_ref(base_name),
+        "script": script,
+        "updated": int(path.stat().st_mtime),
+    }
 
 
 @app.get("/audio/{blob_name}")
@@ -131,6 +170,51 @@ async def get_audio(blob_name: str):
     if not path.is_file():
         raise HTTPException(status_code=404, detail="Audio not found")
     return FileResponse(path, media_type="audio/mpeg")
+
+
+@app.get("/episodes")
+async def list_episodes() -> list[dict]:
+    episodes: list[dict] = []
+    for path in _output_dir.glob("*.json"):
+        try:
+            payload = _episode_payload(path)
+            episodes.append(
+                {
+                    "id": payload["id"],
+                    "title": payload["title"],
+                    "language": payload["language"],
+                    "turns": payload["turns"],
+                    "audio": payload["audio"],
+                    "image": payload["image"],
+                    "updated": payload["updated"],
+                }
+            )
+        except (OSError, ValueError, TypeError):
+            # Ignore malformed or partial files while listing history.
+            continue
+    episodes.sort(key=lambda item: item["updated"], reverse=True)
+    return episodes
+
+
+@app.get("/episodes/{episode_name}")
+async def get_episode(episode_name: str) -> dict:
+    if not _EPISODE_NAME_RE.match(episode_name):
+        raise HTTPException(status_code=400, detail="Invalid episode name")
+    path = _output_dir / episode_name
+    if not path.is_file():
+        raise HTTPException(status_code=404, detail="Episode not found")
+    try:
+        payload = _episode_payload(path)
+    except (OSError, ValueError, TypeError):
+        raise HTTPException(status_code=500, detail="Failed to read episode")
+    return {
+        "title": payload["title"],
+        "turns": payload["turns"],
+        "language": payload["language"],
+        "audio": payload["audio"],
+        "image": payload["image"],
+        "script": payload["script"],
+    }
 
 
 # Serve generated cover-art PNGs (e.g. /images/podcast.png). The image branch

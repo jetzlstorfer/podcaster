@@ -1,6 +1,12 @@
 import { HttpAgent } from "@ag-ui/client";
 
-import { PodcastRequest, PodcastResult, STAGES, Stage } from "./types";
+import {
+  EpisodeSummary,
+  PodcastRequest,
+  PodcastResult,
+  STAGES,
+  Stage,
+} from "./types";
 
 const BACKEND_URL: string =
   (import.meta.env.VITE_BACKEND_URL as string | undefined) ??
@@ -50,6 +56,24 @@ export interface RunCallbacks {
   onStageFinished?: (stage: Stage) => void;
   onResult?: (result: PodcastResult) => void;
   onError?: (error: Error) => void;
+}
+
+export async function listEpisodes(): Promise<EpisodeSummary[]> {
+  const response = await fetch(`${backendUrl}/episodes`);
+  if (!response.ok) {
+    throw new Error(`Failed to load episodes (${response.status})`);
+  }
+  return (await response.json()) as EpisodeSummary[];
+}
+
+export async function getEpisode(episodeId: string): Promise<PodcastResult> {
+  const response = await fetch(
+    `${backendUrl}/episodes/${encodeURIComponent(episodeId)}`,
+  );
+  if (!response.ok) {
+    throw new Error(`Failed to load episode (${response.status})`);
+  }
+  return (await response.json()) as PodcastResult;
 }
 
 /** Run the podcast pipeline over AG-UI and stream progress back to the UI. */
