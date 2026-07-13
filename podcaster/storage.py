@@ -13,9 +13,12 @@ storage account.
 
 from __future__ import annotations
 
+import base64
+import json
 import logging
 from collections.abc import Iterator
 
+from azure.core.exceptions import HttpResponseError
 from azure.identity import DefaultAzureCredential
 
 from podcaster import config
@@ -24,6 +27,7 @@ logger = logging.getLogger(__name__)
 
 # One BlobServiceClient per process (it holds a connection pool + cached token).
 _service_client = None
+_credential = None
 
 
 def storage_configured() -> bool:
@@ -44,9 +48,33 @@ def _client():
             )
         _service_client = BlobServiceClient(
             account_url=config.AZURE_STORAGE_ACCOUNT_URL,
-            credential=DefaultAzureCredential(),
+            credential=_credential_obj(),
         )
     return _service_client
+
+
+def _credential_obj() -> DefaultAzureCredential:
+    global _credential
+    if _credential is None:
+        _credential = DefaultAzureCredential()
+    return _credential
+
+
+def _current_identity_hint() -> str:
+    """Best-effort identity hint from the Storage audience access token claims."""
+    try:
+        token = _credential_obj().get_token("https://storage.azure.com/.default").token
+        parts = token.split(".")
+        if len(parts) < 2:
+            return "identity=unknown"
+        payload = parts[1] + "=" * ((4 - len(parts[1]) % 4) % 4)
+        claims = json.loads(base64.urlsafe_b64decode(payload).decode("utf-8"))
+        oid = claims.get("oid") or ""
+        appid = claims.get("appid") or ""
+        tid = claims.get("tid") or ""
+        return f"identity_oid={oid or 'n/a'} appid={appid or 'n/a'} tid={tid or 'n/a'}"
+    except Exception:
+        return "identity=unavailable"
 
 
 def upload_bytes(
@@ -61,11 +89,21 @@ def upload_bytes(
 
     container = container or config.AZURE_STORAGE_CONTAINER
     blob = _client().get_blob_client(container=container, blob=blob_name)
-    blob.upload_blob(
-        data,
-        overwrite=True,
-        content_settings=ContentSettings(content_type=content_type),
-    )
+    try:
+        blob.upload_blob(
+            data,
+            overwrite=True,
+            content_settings=ContentSettings(content_type=content_type),
+        )
+    except HttpResponseError as exc:
+        code = getattr(exc, "error_code", "") or ""
+        if code == "AuthorizationFailure":
+            raise RuntimeError(
+                "Blob upload unauthorized. "
+                f"container={container} account_url={config.AZURE_STORAGE_ACCOUNT_URL} "
+                f"{_current_identity_hint()}"
+            ) from exc
+        raise
     logger.info("Uploaded %d bytes to blob %s/%s", len(data), container, blob_name)
     return blob_name
 

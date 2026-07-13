@@ -2,8 +2,7 @@
 # runtime + Speech (requests) + Blob upload (azure-storage-blob), all pulled in
 # by the vendored `podcaster` wheel (`make agent-wheels`).
 agent-framework-core>=1.10.0
-# Pin to the last protocol-1.0.0 hosting release (see src/researcher/requirements.txt).
-agent-framework-foundry-hosting==1.0.0a260630
+agent-framework-foundry-hosting
 # a260618 imports mcp but doesn't declare it (see src/researcher/requirements.txt).
 mcp>=1.28.1,<2
 azure-identity

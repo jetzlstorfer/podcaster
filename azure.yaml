@@ -43,6 +43,11 @@ services:
             context: .
             remoteBuild: true
 hooks:
+    postdeploy:
+        shell: sh
+        run: ./infra/hooks/postdeploy.sh
+        continueOnError: true
+        interactive: true
     postprovision:
         shell: sh
         run: ./infra/hooks/postprovision.sh
