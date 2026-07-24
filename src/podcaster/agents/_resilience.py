@@ -28,7 +28,7 @@ logger = logging.getLogger(__name__)
 
 try:  # FoundryChatClient is only importable when the agent framework is installed.
     from agent_framework.foundry import FoundryChatClient
-except Exception:  # pragma: no cover - import guard for lint/test environments
+except ImportError:  # pragma: no cover - import guard for lint/test environments
     FoundryChatClient = None  # type: ignore[assignment]
 
 # Number of attempts before switching to the fallback deployment (if configured).
@@ -163,7 +163,7 @@ async def run_agent_resilient(
                     "Model returned an empty response (no final text)"
                 )
             return result
-        except Exception as exc:  # noqa: BLE001 - re-raised unless it's retryable
+        except Exception as exc:
             if not _should_retry(exc) or attempt == max_attempts:
                 if attempt == max_attempts:
                     logger.error("Giving up after %d attempts: %s", attempt, exc)

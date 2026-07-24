@@ -9,9 +9,9 @@ from pathlib import Path
 
 import requests
 from azure.identity import DefaultAzureCredential, get_bearer_token_provider
+from src.podcaster.models import DialogueTurn, PodcastScript
 
 from src.podcaster import config
-from src.podcaster.models import DialogueTurn, PodcastScript
 
 logger = logging.getLogger(__name__)
 

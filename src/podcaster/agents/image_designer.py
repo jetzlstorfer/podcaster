@@ -26,11 +26,11 @@ from pathlib import Path
 import requests
 from agent_framework import Agent
 from azure.identity import DefaultAzureCredential, get_bearer_token_provider
+from src.podcaster.models import PodcastScript
 
 from src.podcaster import config
 from src.podcaster.agents._resilience import make_foundry_client, run_agent_resilient
 from src.podcaster.agents.narrator import _safe_filename
-from src.podcaster.models import PodcastScript
 
 logger = logging.getLogger(__name__)
 

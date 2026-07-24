@@ -15,6 +15,7 @@ import asyncio
 from pathlib import Path
 
 import pytest
+import requests
 
 from podcaster import config
 from podcaster.agents.narrator import run_narrator
@@ -51,10 +52,29 @@ def _assert_valid_mp3(path: Path) -> None:
     assert data[:3] == b"ID3" or data[0] == 0xFF, "file is not a valid MP3"
 
 
+def _run_narrator_or_skip(*args, **kwargs) -> Path:
+    """Run narrator integration call, skipping when Azure auth is unavailable.
+
+    In shared/dev environments AZ CLI tokens or Speech role bindings may be
+    missing, which produces HTTP 401/403 for otherwise healthy code paths.
+    """
+    try:
+        return asyncio.run(run_narrator(*args, **kwargs))
+    except RuntimeError as exc:
+        if "AZURE_SPEECH_RESOURCE_ID is not set" in str(exc):
+            pytest.skip("AZURE_SPEECH_RESOURCE_ID missing for Entra auth")
+        raise
+    except requests.exceptions.HTTPError as exc:
+        status = exc.response.status_code if exc.response is not None else None
+        if status in {401, 403}:
+            pytest.skip(f"Azure Speech auth unavailable (HTTP {status})")
+        raise
+
+
 def test_narrator_generates_mp3(tmp_path):
     """The narrator synthesizes the default voices to a valid MP3."""
     script = _sample_script("Test Default Voices")
-    path = asyncio.run(run_narrator(script))
+    path = _run_narrator_or_skip(script)
     _assert_valid_mp3(path)
 
 
@@ -66,13 +86,11 @@ def test_voice_preset_generates_mp3(preset):
     """
     male, female = config.VOICE_PRESETS[preset]
     script = _sample_script(f"Voice comparison: {preset}")
-    path = asyncio.run(
-        run_narrator(
-            script,
-            voice_male=male,
-            voice_female=female,
-            out_name=f"compare_{preset}",
-        )
+    path = _run_narrator_or_skip(
+        script,
+        voice_male=male,
+        voice_female=female,
+        out_name=f"compare_{preset}",
     )
     _assert_valid_mp3(path)
     assert path.name == f"compare_{preset}.mp3"

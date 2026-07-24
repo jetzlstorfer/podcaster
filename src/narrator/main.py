@@ -19,7 +19,7 @@ import asyncio
 import json
 import logging
 import re
-from typing import Any
+from typing import Any, Never
 
 from agent_framework import (
     Executor,
@@ -30,7 +30,6 @@ from agent_framework import (
 )
 from agent_framework_foundry_hosting import ResponsesHostServer
 from dotenv import load_dotenv
-from typing_extensions import Never
 
 from podcaster import config, storage
 from podcaster.agents.narrator import audio_blob_name, synthesize_script
@@ -92,7 +91,7 @@ class NarrateExecutor(Executor):
             await ctx.yield_output(
                 json.dumps({"blob": blob, "container": config.AZURE_STORAGE_CONTAINER})
             )
-        except Exception as exc:  # noqa: BLE001 - surfaced as a skip message
+        except Exception as exc:
             logger.exception("[narrate] failed")
             await ctx.yield_output(f"[Audio skipped: {type(exc).__name__}: {exc}]")
 

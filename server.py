@@ -12,9 +12,10 @@ Run with:
 
 from __future__ import annotations
 
+import json
+import logging
 import os
 import re
-import json
 from collections.abc import AsyncIterator
 from pathlib import Path
 
@@ -23,6 +24,7 @@ from agent_framework.ag_ui import (
     AgentFrameworkWorkflow,
     add_agent_framework_fastapi_endpoint,
 )
+from azure.core.exceptions import AzureError
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -32,6 +34,8 @@ from starlette.responses import FileResponse, StreamingResponse
 from podcaster import config, storage
 from podcaster.observability import setup_observability
 from podcaster.workflow import make_workflow
+
+logger = logging.getLogger(__name__)
 
 load_dotenv(override=False)
 
@@ -205,9 +209,9 @@ async def list_episodes() -> list[dict]:
                     }
                 except (OSError, ValueError, TypeError, UnicodeDecodeError):
                     continue
-        except Exception:
+        except (AzureError, OSError, ValueError, TypeError, UnicodeDecodeError) as exc:
             # Fall back to local files if blob listing is unavailable.
-            pass
+            logger.warning("Blob episode listing unavailable; falling back to local files: %s", exc)
 
     for path in _output_dir.glob("*.json"):
         try:
