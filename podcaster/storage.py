@@ -14,10 +14,11 @@ storage account.
 from __future__ import annotations
 
 import base64
+import binascii
 import json
 import logging
-from datetime import datetime
 from collections.abc import Iterator
+from datetime import datetime
 
 from azure.core.exceptions import HttpResponseError
 from azure.identity import DefaultAzureCredential
@@ -74,7 +75,14 @@ def _current_identity_hint() -> str:
         appid = claims.get("appid") or ""
         tid = claims.get("tid") or ""
         return f"identity_oid={oid or 'n/a'} appid={appid or 'n/a'} tid={tid or 'n/a'}"
-    except Exception:
+    except (
+        AttributeError,
+        TypeError,
+        ValueError,
+        UnicodeDecodeError,
+        json.JSONDecodeError,
+        binascii.Error,
+    ):
         return "identity=unavailable"
 
 

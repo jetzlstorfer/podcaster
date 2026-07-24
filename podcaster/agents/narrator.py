@@ -5,8 +5,8 @@ import html
 import logging
 import re
 import time
-from tempfile import NamedTemporaryFile
 from pathlib import Path
+from tempfile import NamedTemporaryFile
 
 import requests
 from azure.identity import DefaultAzureCredential, get_bearer_token_provider

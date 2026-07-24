@@ -74,7 +74,7 @@ def _configure_otel(log: logging.Logger) -> None:
                 connection_string=config.APPLICATIONINSIGHTS_CONNECTION_STRING
             )
             log.info("Azure Monitor (Application Insights) exporter enabled.")
-        except Exception as exc:  # pragma: no cover - optional dependency
+        except ImportError as exc:  # pragma: no cover - optional dependency
             log.warning(
                 "APPLICATIONINSIGHTS_CONNECTION_STRING is set but Azure Monitor "
                 "could not be configured (%s). Install 'azure-monitor-opentelemetry'.",
@@ -83,7 +83,7 @@ def _configure_otel(log: logging.Logger) -> None:
 
     try:
         from agent_framework.observability import configure_otel_providers
-    except Exception as exc:  # pragma: no cover - import guard
+    except ImportError as exc:  # pragma: no cover - import guard
         log.warning("Agent Framework observability unavailable: %s", exc)
         return
 
@@ -96,5 +96,5 @@ def _configure_otel(log: logging.Logger) -> None:
     try:
         configure_otel_providers(**kwargs)
         log.info("OpenTelemetry instrumentation enabled.")
-    except Exception as exc:  # pragma: no cover - defensive
+    except (AttributeError, RuntimeError, TypeError, ValueError) as exc:  # pragma: no cover - defensive
         log.warning("Failed to configure OpenTelemetry providers: %s", exc)
