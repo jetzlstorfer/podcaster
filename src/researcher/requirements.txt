@@ -3,8 +3,8 @@
 # service dir by `make agent-wheels` (see the repo root Makefile). The wheel's
 # own dependencies (pydantic, requests, azure-identity, azure-storage-blob,
 # agent-framework-core/foundry, python-dotenv) are resolved from PyPI.
-agent-framework-core>=1.10.0
-agent-framework-foundry>=1.10.0
+agent-framework-core>=1.11.0
+agent-framework-foundry>=1.10.1
 agent-framework-foundry-hosting
 # a260618 imports `from mcp import McpError` but doesn't declare mcp as a
 # dependency; pin to the same range agent-framework-core uses for its `all` extra.
