@@ -1,7 +1,7 @@
 # Hosted scriptwriter agent dependencies. See src/researcher/requirements.txt
 # for notes on the vendored `podcaster` wheel (`make agent-wheels`).
-agent-framework-core>=1.11.0
-agent-framework-foundry>=1.10.1
+agent-framework-core>=1.12.1
+agent-framework-foundry>=1.10.3
 agent-framework-foundry-hosting
 # a260618 imports mcp but doesn't declare it (see src/researcher/requirements.txt).
 mcp>=1.28.1,<2
