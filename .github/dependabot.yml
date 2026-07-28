@@ -4,7 +4,7 @@ updates:
   - package-ecosystem: "pip"
     directory: "/"
     schedule:
-      interval: "weekly"
+      interval: "monthly"
     groups:
       python:
         patterns:
@@ -17,7 +17,7 @@ updates:
       - "/src/scriptwriter"
       - "/src/narrator"
     schedule:
-      interval: "weekly"
+      interval: "monthly"
     groups:
       hosted-agents:
         patterns:
@@ -27,7 +27,7 @@ updates:
   - package-ecosystem: "npm"
     directory: "/frontend"
     schedule:
-      interval: "weekly"
+      interval: "monthly"
     groups:
       frontend:
         patterns:
@@ -37,7 +37,7 @@ updates:
   - package-ecosystem: "devcontainers"
     directory: "/"
     schedule:
-      interval: "weekly"
+      interval: "monthly"
     groups:
       devcontainers:
         patterns:
@@ -47,7 +47,7 @@ updates:
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
-      interval: "weekly"
+      interval: "monthly"
     groups:
       github-actions:
         patterns:
