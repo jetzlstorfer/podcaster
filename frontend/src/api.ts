@@ -76,6 +76,16 @@ export async function getEpisode(episodeId: string): Promise<PodcastResult> {
   return (await response.json()) as PodcastResult;
 }
 
+export async function deleteEpisode(episodeId: string): Promise<void> {
+  const response = await fetch(
+    `${backendUrl}/episodes/${encodeURIComponent(episodeId)}`,
+    { method: "DELETE" },
+  );
+  if (!response.ok) {
+    throw new Error(`Failed to delete episode (${response.status})`);
+  }
+}
+
 /** Run the podcast pipeline over AG-UI and stream progress back to the UI. */
 export async function runPodcast(
   request: PodcastRequest,

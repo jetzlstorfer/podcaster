@@ -80,5 +80,8 @@ jobs:
           azd env set SCRIPTWRITER_AGENT_NAME           "$SCRIPTWRITER_AGENT_NAME"
           azd env set NARRATOR_AGENT_NAME               "$NARRATOR_AGENT_NAME"
 
-      - name: Deploy
+      - name: Provision infrastructure
+        run: azd provision --no-prompt
+
+      - name: Deploy services
         run: azd deploy --no-prompt
