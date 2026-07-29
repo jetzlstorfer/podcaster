@@ -36,7 +36,7 @@ var prefix = 'pod${resourceToken}'
 
 // Built-in role definition IDs.
 var acrPullRoleId = '7f951dda-4ed3-4680-a7ca-43fe172d538d'
-var blobDataReaderRoleId = '2a2b9908-6ea1-4ae2-8e65-a410df84e7d1'
+var blobDataContributorRoleId = 'ba92f5b4-2d11-453d-a403-e96b0029c9fe'
 
 // ---------------------------------------------------------------------------
 // Observability
@@ -155,7 +155,7 @@ resource web 'Microsoft.App/containerApps@2024-03-01' = {
   // validates the ACR registry credential.
   dependsOn: [
     acrPull
-    blobReader
+    blobContributor
   ]
   properties: {
     managedEnvironmentId: containerEnv.id
@@ -272,12 +272,12 @@ resource acrPull 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
   }
 }
 
-// Read (stream) generated MP3s from the private container for the /audio proxy.
-resource blobReader 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
-  name: guid(storage.id, webIdentity.id, blobDataReaderRoleId)
+// Read and persist episode scripts/audio in the private blob container.
+resource blobContributor 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  name: guid(storage.id, webIdentity.id, blobDataContributorRoleId)
   scope: storage
   properties: {
-    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', blobDataReaderRoleId)
+    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', blobDataContributorRoleId)
     principalId: webIdentity.properties.principalId
     principalType: 'ServicePrincipal'
   }
