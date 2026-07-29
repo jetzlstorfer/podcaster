@@ -34,10 +34,6 @@ param containerTargetPort int = 80
 var resourceToken = toLower(uniqueString(subscription().id, resourceGroup().id, environmentName))
 var prefix = 'pod${resourceToken}'
 
-// Built-in role definition IDs.
-var acrPullRoleId = '7f951dda-4ed3-4680-a7ca-43fe172d538d'
-var blobDataContributorRoleId = 'ba92f5b4-2d11-453d-a403-e96b0029c9fe'
-
 // ---------------------------------------------------------------------------
 // Observability
 // ---------------------------------------------------------------------------
@@ -258,30 +254,9 @@ resource webAuth 'Microsoft.App/containerApps/authConfigs@2024-03-01' = if (enab
   }
 }
 
-// ---------------------------------------------------------------------------
-// RBAC — the backend's user-assigned managed identity
-// ---------------------------------------------------------------------------
-// Pull the web image from ACR.
-resource acrPull 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
-  name: guid(registry.id, webIdentity.id, acrPullRoleId)
-  scope: registry
-  properties: {
-    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', acrPullRoleId)
-    principalId: webIdentity.properties.principalId
-    principalType: 'ServicePrincipal'
-  }
-}
-
-// Read and persist episode scripts/audio in the private blob container.
-resource blobContributor 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
-  name: guid(storage.id, webIdentity.id, blobDataContributorRoleId)
-  scope: storage
-  properties: {
-    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', blobDataContributorRoleId)
-    principalId: webIdentity.properties.principalId
-    principalType: 'ServicePrincipal'
-  }
-}
+// Note: RBAC role assignments (ACR Pull, Blob Data Contributor) are created manually
+// due to subscription ABAC conditions that prevent automated role assignment.
+// See: https://learn.microsoft.com/azure/role-based-access-control/role-assignments-portal
 
 output registryLoginServer string = registry.properties.loginServer
 output webUri string = 'https://${web.properties.configuration.ingress.fqdn}'
