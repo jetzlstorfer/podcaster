@@ -92,13 +92,21 @@ async def strip_unsupported_agui_events(request: Request, call_next):
 
     async def filtered() -> AsyncIterator[bytes]:
         buffer = b""
+        run_errored = False
         async for chunk in source:
             buffer += chunk if isinstance(chunk, bytes) else chunk.encode()
             while b"\n\n" in buffer:
                 event, buffer = buffer.split(b"\n\n", 1)
-                if not any(t in event for t in _DROPPED_EVENT_TYPES):
-                    yield event + b"\n\n"
-        if buffer and not any(t in buffer for t in _DROPPED_EVENT_TYPES):
+                if run_errored or any(t in event for t in _DROPPED_EVENT_TYPES):
+                    continue
+                yield event + b"\n\n"
+                if b'"RUN_ERROR"' in event:
+                    run_errored = True
+        if (
+            buffer
+            and not run_errored
+            and not any(t in buffer for t in _DROPPED_EVENT_TYPES)
+        ):
             yield buffer
 
     return StreamingResponse(
