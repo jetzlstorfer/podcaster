@@ -135,9 +135,11 @@ _EPISODE_NAME_RE = re.compile(r"^[\w.\-]+\.json$")
 def _resolve_audio_ref(base_name: str) -> str:
     blob_name = f"{base_name}.mp3"
     if storage.storage_configured():
-        if storage.blob_exists(blob_name):
-            return f"/audio/{blob_name}"
-        return "[Audio not found for this episode]"
+        try:
+            if storage.blob_exists(blob_name):
+                return f"/audio/{blob_name}"
+        except (AzureError, OSError, RuntimeError):
+            logger.warning("Blob audio lookup unavailable for %s", blob_name)
     path = _output_dir / blob_name
     if path.is_file():
         return f"/audio/{blob_name}"
@@ -183,11 +185,13 @@ async def get_audio(blob_name: str):
     if not _AUDIO_NAME_RE.match(blob_name):
         raise HTTPException(status_code=400, detail="Invalid audio name")
     if storage.storage_configured():
-        if not storage.blob_exists(blob_name):
-            raise HTTPException(status_code=404, detail="Audio not found")
-        return StreamingResponse(
-            storage.download_stream(blob_name), media_type="audio/mpeg"
-        )
+        try:
+            if storage.blob_exists(blob_name):
+                return StreamingResponse(
+                    storage.download_stream(blob_name), media_type="audio/mpeg"
+                )
+        except (AzureError, OSError, RuntimeError):
+            logger.warning("Blob audio unavailable for %s; trying local file", blob_name)
     path = _output_dir / blob_name
     if not path.is_file():
         raise HTTPException(status_code=404, detail="Audio not found")
