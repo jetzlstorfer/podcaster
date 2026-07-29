@@ -48,6 +48,7 @@ _TRANSIENT_BAD_REQUEST_MARKERS = ("invalid_payload", "invalid request payload")
 # A builder receives (model, project_endpoint) — ``None`` means "use the
 # env-configured primary" — and returns a ready-to-run Agent.
 AgentBuilder = Callable[[str | None, str | None], Agent]
+ResultValidator = Callable[[Any], None]
 
 
 class EmptyModelResponse(RuntimeError):
@@ -59,6 +60,10 @@ class EmptyModelResponse(RuntimeError):
     it isn't caught by the rate-limit/bad-request handling — but it's just as
     transient, so we treat it as retryable.
     """
+
+
+class InvalidModelResponse(RuntimeError):
+    """Raised when model text does not satisfy the required output contract."""
 
 
 def make_foundry_client(
@@ -96,7 +101,7 @@ def _is_transient_bad_request(exc: BaseException) -> bool:
 
 def _should_retry(exc: BaseException) -> bool:
     return (
-        isinstance(exc, EmptyModelResponse)
+        isinstance(exc, (EmptyModelResponse, InvalidModelResponse))
         or _is_rate_limit(exc)
         or _is_transient_bad_request(exc)
     )
@@ -127,14 +132,16 @@ async def run_agent_resilient(
     *,
     max_attempts: int = _MAX_ATTEMPTS,
     require_text: bool = True,
+    validate_result: ResultValidator | None = None,
     sleep: Callable[[float], Awaitable[None]] = asyncio.sleep,
 ) -> Any:
     """Run ``agent.run(prompt)`` with backoff on retryable errors, then fail over.
 
-    Retryable = rate limits (429), the Foundry transient ``invalid_payload``
-    400s, and — when ``require_text`` is set — runs that return an empty final
-    message. ``build_agent(model, endpoint)`` builds the agent; ``None`` selects
-    the env-configured primary. Other errors are raised immediately.
+    Retryable = rate limits (429), transient ``invalid_payload`` 400s, empty
+    final messages, and results rejected by ``validate_result`` with
+    ``InvalidModelResponse``. ``build_agent(model, endpoint)`` builds the agent;
+    ``None`` selects the env-configured primary. Other errors are raised
+    immediately.
     """
     has_fallback = bool(
         config.FOUNDRY_MODEL_FALLBACK or config.FOUNDRY_PROJECT_ENDPOINT_FALLBACK
@@ -162,6 +169,8 @@ async def run_agent_resilient(
                 raise EmptyModelResponse(
                     "Model returned an empty response (no final text)"
                 )
+            if validate_result is not None:
+                validate_result(result)
             return result
         except Exception as exc:
             if not _should_retry(exc) or attempt == max_attempts:
@@ -174,6 +183,8 @@ async def run_agent_resilient(
                 delay = min(delay * 2, _MAX_DELAY)
             if isinstance(exc, EmptyModelResponse):
                 reason = "empty response"
+            elif isinstance(exc, InvalidModelResponse):
+                reason = "invalid structured response"
             elif _is_rate_limit(exc):
                 reason = "rate limit"
             else:

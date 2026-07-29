@@ -160,6 +160,45 @@ def test_run_agent_resilient_retries_on_empty_response():
     assert calls["n"] == 3
 
 
+def test_run_agent_resilient_retries_on_invalid_structured_response():
+    import asyncio
+
+    from podcaster.agents import _resilience
+
+    calls = {"n": 0}
+
+    class _FakeResult:
+        def __init__(self, text):
+            self.text = text
+
+    class _FakeAgent:
+        async def run(self, prompt):
+            calls["n"] += 1
+            return _FakeResult("not json" if calls["n"] < 3 else '{"ok": true}')
+
+    def validate(result):
+        import json
+
+        try:
+            json.loads(result.text)
+        except ValueError as exc:
+            raise _resilience.InvalidModelResponse("invalid JSON") from exc
+
+    async def _no_sleep(_seconds):
+        return None
+
+    result = asyncio.run(
+        _resilience.run_agent_resilient(
+            lambda model, endpoint: _FakeAgent(),
+            "hello",
+            validate_result=validate,
+            sleep=_no_sleep,
+        )
+    )
+    assert result.text == '{"ok": true}'
+    assert calls["n"] == 3
+
+
 def test_run_agent_resilient_reraises_non_rate_limit():
     import asyncio
 
@@ -334,4 +373,3 @@ def test_image_dimensions_parse_size():
         assert _image_dimensions() == (1024, 1024)
     finally:
         config.IMAGE_SIZE = original
-

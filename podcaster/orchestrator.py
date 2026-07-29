@@ -20,12 +20,13 @@ from __future__ import annotations
 
 import json
 import logging
+from collections.abc import Callable
 from pathlib import Path
 
 from azure.identity import DefaultAzureCredential
 
 from podcaster import config, storage
-from podcaster.agents._resilience import run_agent_resilient
+from podcaster.agents._resilience import InvalidModelResponse, run_agent_resilient
 from podcaster.agents.narrator import (
     audio_blob_name,
     run_narrator,
@@ -38,7 +39,13 @@ from podcaster.models import PodcastRequest, PodcastScript, ResearchBrief
 logger = logging.getLogger(__name__)
 
 
-async def _invoke_hosted(agent_name: str, agent_version: str, prompt: str) -> str:
+async def _invoke_hosted(
+    agent_name: str,
+    agent_version: str,
+    prompt: str,
+    *,
+    validate_text: Callable[[str], object] | None = None,
+) -> str:
     """Invoke a deployed Foundry hosted agent (with retry) and return its text.
 
     Reuses ``run_agent_resilient`` so hosted invocations get the same 429 /
@@ -60,7 +67,18 @@ async def _invoke_hosted(agent_name: str, agent_version: str, prompt: str) -> st
             allow_preview=True,
         )
 
-    result = await run_agent_resilient(build, prompt)
+    def validate(result: object) -> None:
+        if validate_text is None:
+            return
+        text = str(getattr(result, "text", "") or "")
+        try:
+            validate_text(text)
+        except (TypeError, ValueError) as exc:
+            raise InvalidModelResponse(
+                f"Hosted agent {agent_name} returned invalid structured output"
+            ) from exc
+
+    result = await run_agent_resilient(build, prompt, validate_result=validate)
     return getattr(result, "text", "") or ""
 
 
@@ -72,6 +90,7 @@ async def research(request: PodcastRequest) -> ResearchBrief:
             config.RESEARCHER_AGENT_NAME,
             config.RESEARCHER_AGENT_VERSION,
             request.model_dump_json(),
+            validate_text=lambda text: parse_research_brief(text, request),
         )
         return parse_research_brief(text, request)
     return await run_researcher(request)
@@ -87,6 +106,7 @@ async def write_script(brief: ResearchBrief) -> PodcastScript:
             config.SCRIPTWRITER_AGENT_NAME,
             config.SCRIPTWRITER_AGENT_VERSION,
             brief.model_dump_json(),
+            validate_text=lambda text: parse_script(text, brief),
         )
         return parse_script(text, brief)
     return await run_scriptwriter(brief)
