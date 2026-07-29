@@ -42,7 +42,7 @@ The narrator is **optional** — if `AZURE_SPEECH_ENDPOINT` is not configured th
 
 **Pydantic models are the inter-stage contracts.** `PodcastRequest`, `ResearchBrief`, `PodcastScript`, `NarrationResult`, and `ImageResult` (in `podcaster/models.py`) are what executors pass via `ctx.send_message()`. The two parallel branches emit **distinct** types (`NarrationResult` vs `ImageResult`) so `FinalizeExecutor` can discriminate them in the aggregated list. Speakers are typed `Literal["Alex", "Jordan"]` in `DialogueTurn`.
 
-**All agents use `AzureCliCredential` (keyless Entra ID auth).** There are no API key strings in agent construction — `FoundryChatClient`, the Speech narrator, and the image REST call all authenticate via `az login`.
+**All agents use `DefaultAzureCredential` (keyless Entra ID auth).** There are no API key strings in agent construction — `FoundryChatClient`, the Speech narrator, and the image REST call all authenticate via `DefaultAzureCredential` (which picks up `az login` locally and managed identity in Azure).
 
 **Speech Entra auth uses the `aad#<resourceId>#<token>` format.** The narrator builds this in `_headers()`. `AZURE_SPEECH_RESOURCE_ID` is the ARM account-level ID (no `/projects/...` suffix); it's required when `USE_SPEECH_ENTRA_AUTH=true`.
 
