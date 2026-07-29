@@ -64,7 +64,10 @@ resource appInsights 'Microsoft.Insights/components@2020-02-02' = {
 resource storage 'Microsoft.Storage/storageAccounts@2023-05-01' = {
   name: take('${prefix}stor', 24)
   location: location
-  tags: tags
+  // The subscription policy disables public storage networking unless this
+  // resource-level exception is present. Container Apps needs the public Blob
+  // endpoint because this environment was created without VNet integration.
+  tags: union(tags, { SecurityControl: 'Ignore' })
   sku: { name: 'Standard_LRS' }
   kind: 'StorageV2'
   properties: {

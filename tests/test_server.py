@@ -22,6 +22,29 @@ def test_episode_list_is_not_cached(tmp_path, monkeypatch):
     assert response.json()[0]["title"] == "New episode"
 
 
+def test_episode_list_uses_local_files_when_blob_storage_is_unavailable(
+    tmp_path, monkeypatch
+):
+    monkeypatch.setattr(server, "_output_dir", tmp_path)
+    monkeypatch.setattr(server.storage, "storage_configured", lambda: True)
+
+    def unavailable(*args, **kwargs):
+        raise server.AzureError("storage unavailable")
+
+    monkeypatch.setattr(server.storage, "list_blobs", unavailable)
+    monkeypatch.setattr(server.storage, "blob_exists", unavailable)
+    (tmp_path / "new_episode.json").write_text(
+        '{"title":"New episode","language":"english","turns":[]}',
+        encoding="utf-8",
+    )
+    (tmp_path / "new_episode.mp3").write_bytes(b"audio")
+
+    response = TestClient(server.app).get("/episodes")
+
+    assert response.status_code == 200
+    assert response.json()[0]["audio"] == "/audio/new_episode.mp3"
+
+
 def test_delete_episode_removes_all_related_local_files(tmp_path, monkeypatch):
     monkeypatch.setattr(server, "_output_dir", tmp_path)
     monkeypatch.setattr(server.storage, "storage_configured", lambda: False)
