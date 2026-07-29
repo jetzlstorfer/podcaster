@@ -144,7 +144,6 @@ export default function App(): React.JSX.Element {
         onResult: (r) => {
           setResult(r);
           setStatus("done");
-          void loadEpisodes();
         },
         onError: (err) => {
           setError(err.message);
@@ -152,6 +151,8 @@ export default function App(): React.JSX.Element {
         },
       },
     );
+
+    await loadEpisodes();
 
     // If the stream ended without an explicit result or error, settle status.
     setStatus((prev) => (prev === "running" ? "done" : prev));
