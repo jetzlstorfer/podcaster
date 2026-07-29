@@ -111,6 +111,15 @@ async def strip_unsupported_agui_events(request: Request, call_next):
     )
 
 
+@app.middleware("http")
+async def prevent_episode_list_caching(request: Request, call_next):
+    """Ensure a completed episode appears on the next library refresh."""
+    response = await call_next(request)
+    if request.url.path == "/episodes":
+        response.headers["Cache-Control"] = "no-store"
+    return response
+
+
 # Serve generated MP3s. In the cloud the narrator uploads each episode to a
 # PRIVATE blob container, so /audio/<blob> streams it back through the backend's
 # managed identity (Storage Blob Data Contributor). Locally (no storage account) it

@@ -59,7 +59,7 @@ export interface RunCallbacks {
 }
 
 export async function listEpisodes(): Promise<EpisodeSummary[]> {
-  const response = await fetch(`${backendUrl}/episodes`);
+  const response = await fetch(`${backendUrl}/episodes`, { cache: "no-store" });
   if (!response.ok) {
     throw new Error(`Failed to load episodes (${response.status})`);
   }

@@ -2,8 +2,24 @@ import asyncio
 
 import pytest
 from fastapi import HTTPException
+from fastapi.testclient import TestClient
 
 import server
+
+
+def test_episode_list_is_not_cached(tmp_path, monkeypatch):
+    monkeypatch.setattr(server, "_output_dir", tmp_path)
+    monkeypatch.setattr(server.storage, "storage_configured", lambda: False)
+    (tmp_path / "new_episode.json").write_text(
+        '{"title":"New episode","language":"english","turns":[]}',
+        encoding="utf-8",
+    )
+
+    response = TestClient(server.app).get("/episodes")
+
+    assert response.status_code == 200
+    assert response.headers["cache-control"] == "no-store"
+    assert response.json()[0]["title"] == "New episode"
 
 
 def test_delete_episode_removes_all_related_local_files(tmp_path, monkeypatch):
