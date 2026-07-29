@@ -83,8 +83,15 @@ body {
   gap: 0.55rem;
 }
 
+.episode-row {
+  display: flex;
+  gap: 0.4rem;
+  align-items: stretch;
+}
+
 .episode-item {
-  width: 100%;
+  min-width: 0;
+  flex: 1;
   text-align: left;
   padding: 0.7rem 0.75rem;
   border-radius: 10px;
@@ -109,6 +116,28 @@ body {
 .episode-item-active {
   border-color: var(--accent);
   box-shadow: 0 0 0 1px rgba(108, 140, 255, 0.35);
+}
+
+.episode-delete {
+  width: 2.25rem;
+  padding: 0;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: #12141c;
+  color: var(--muted);
+  font: inherit;
+  font-size: 1.25rem;
+  cursor: pointer;
+}
+
+.episode-delete:hover:not(:disabled) {
+  border-color: #ff8080;
+  color: #ff8080;
+}
+
+.episode-delete:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
 .episode-title {

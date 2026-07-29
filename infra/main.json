@@ -4,8 +4,8 @@
   "metadata": {
     "_generator": {
       "name": "bicep",
-      "version": "0.44.1.10279",
-      "templateHash": "2068407518571800829"
+      "version": "0.45.15.27210",
+      "templateHash": "11910267985662449238"
     }
   },
   "parameters": {
@@ -81,6 +81,20 @@
       "metadata": {
         "description": "Entra app client secret for Easy Auth (required when authClientId is set)."
       }
+    },
+    "azureSpeechEndpoint": {
+      "type": "string",
+      "defaultValue": "",
+      "metadata": {
+        "description": "Regional Azure Speech TTS endpoint (e.g. https://<region>.tts.speech.microsoft.com/). Empty = narrator skipped."
+      }
+    },
+    "azureSpeechResourceId": {
+      "type": "string",
+      "defaultValue": "",
+      "metadata": {
+        "description": "ARM resource ID of the Azure Speech account — required for Entra ID auth (aad#<id>#<token> format). E.g. /subscriptions/<sub>/resourceGroups/<rg>/providers/Microsoft.CognitiveServices/accounts/<name>."
+      }
     }
   },
   "variables": {
@@ -139,6 +153,12 @@
           },
           "authClientSecret": {
             "value": "[parameters('authClientSecret')]"
+          },
+          "azureSpeechEndpoint": {
+            "value": "[parameters('azureSpeechEndpoint')]"
+          },
+          "azureSpeechResourceId": {
+            "value": "[parameters('azureSpeechResourceId')]"
           }
         },
         "template": {
@@ -147,8 +167,8 @@
           "metadata": {
             "_generator": {
               "name": "bicep",
-              "version": "0.44.1.10279",
-              "templateHash": "11682085782076847898"
+              "version": "0.45.15.27210",
+              "templateHash": "18378450583540305826"
             }
           },
           "parameters": {
@@ -204,6 +224,20 @@
               "type": "securestring",
               "defaultValue": ""
             },
+            "azureSpeechEndpoint": {
+              "type": "string",
+              "defaultValue": "",
+              "metadata": {
+                "description": "Regional Azure Speech TTS endpoint. Empty = narrator skipped on Azure."
+              }
+            },
+            "azureSpeechResourceId": {
+              "type": "string",
+              "defaultValue": "",
+              "metadata": {
+                "description": "ARM resource ID of the Speech account used for Entra ID TTS auth (aad#<id>#<token>)."
+              }
+            },
             "audioContainerName": {
               "type": "string",
               "defaultValue": "audio",
@@ -223,7 +257,7 @@
             "resourceToken": "[toLower(uniqueString(subscription().id, resourceGroup().id, parameters('environmentName')))]",
             "prefix": "[format('pod{0}', variables('resourceToken'))]",
             "acrPullRoleId": "7f951dda-4ed3-4680-a7ca-43fe172d538d",
-            "blobDataReaderRoleId": "2a2b9908-6ea1-4ae2-8e65-a410df84e7d1",
+            "blobDataContributorRoleId": "ba92f5b4-2d11-453d-a403-e96b0029c9fe",
             "placeholderImage": "mcr.microsoft.com/azuredocs/containerapps-helloworld:latest",
             "enableAuth": "[not(empty(parameters('authClientId')))]"
           },
@@ -428,6 +462,18 @@
                           "value": "[parameters('narratorAgentName')]"
                         },
                         {
+                          "name": "AZURE_SPEECH_ENDPOINT",
+                          "value": "[parameters('azureSpeechEndpoint')]"
+                        },
+                        {
+                          "name": "AZURE_SPEECH_RESOURCE_ID",
+                          "value": "[parameters('azureSpeechResourceId')]"
+                        },
+                        {
+                          "name": "USE_SPEECH_ENTRA_AUTH",
+                          "value": "true"
+                        },
+                        {
                           "name": "APPLICATIONINSIGHTS_CONNECTION_STRING",
                           "value": "[reference(resourceId('Microsoft.Insights/components', format('{0}-appi', variables('prefix'))), '2020-02-02').ConnectionString]"
                         }
@@ -443,7 +489,7 @@
               "dependsOn": [
                 "[extensionResourceId(resourceId('Microsoft.ContainerRegistry/registries', take(format('{0}acr', variables('prefix')), 50)), 'Microsoft.Authorization/roleAssignments', guid(resourceId('Microsoft.ContainerRegistry/registries', take(format('{0}acr', variables('prefix')), 50)), resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', format('{0}-web-id', variables('prefix'))), variables('acrPullRoleId')))]",
                 "[resourceId('Microsoft.Insights/components', format('{0}-appi', variables('prefix')))]",
-                "[extensionResourceId(resourceId('Microsoft.Storage/storageAccounts', take(format('{0}stor', variables('prefix')), 24)), 'Microsoft.Authorization/roleAssignments', guid(resourceId('Microsoft.Storage/storageAccounts', take(format('{0}stor', variables('prefix')), 24)), resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', format('{0}-web-id', variables('prefix'))), variables('blobDataReaderRoleId')))]",
+                "[extensionResourceId(resourceId('Microsoft.Storage/storageAccounts', take(format('{0}stor', variables('prefix')), 24)), 'Microsoft.Authorization/roleAssignments', guid(resourceId('Microsoft.Storage/storageAccounts', take(format('{0}stor', variables('prefix')), 24)), resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', format('{0}-web-id', variables('prefix'))), variables('blobDataContributorRoleId')))]",
                 "[resourceId('Microsoft.App/managedEnvironments', format('{0}-env', variables('prefix')))]",
                 "[resourceId('Microsoft.ContainerRegistry/registries', take(format('{0}acr', variables('prefix')), 50))]",
                 "[resourceId('Microsoft.Storage/storageAccounts', take(format('{0}stor', variables('prefix')), 24))]",
@@ -505,9 +551,9 @@
               "type": "Microsoft.Authorization/roleAssignments",
               "apiVersion": "2022-04-01",
               "scope": "[resourceId('Microsoft.Storage/storageAccounts', take(format('{0}stor', variables('prefix')), 24))]",
-              "name": "[guid(resourceId('Microsoft.Storage/storageAccounts', take(format('{0}stor', variables('prefix')), 24)), resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', format('{0}-web-id', variables('prefix'))), variables('blobDataReaderRoleId'))]",
+              "name": "[guid(resourceId('Microsoft.Storage/storageAccounts', take(format('{0}stor', variables('prefix')), 24)), resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', format('{0}-web-id', variables('prefix'))), variables('blobDataContributorRoleId'))]",
               "properties": {
-                "roleDefinitionId": "[subscriptionResourceId('Microsoft.Authorization/roleDefinitions', variables('blobDataReaderRoleId'))]",
+                "roleDefinitionId": "[subscriptionResourceId('Microsoft.Authorization/roleDefinitions', variables('blobDataContributorRoleId'))]",
                 "principalId": "[reference(resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', format('{0}-web-id', variables('prefix'))), '2023-01-31').principalId]",
                 "principalType": "ServicePrincipal"
               },
@@ -578,6 +624,10 @@
     "WEB_IDENTITY_PRINCIPAL_ID": {
       "type": "string",
       "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, parameters('resourceGroupName')), 'Microsoft.Resources/deployments', 'podcaster-resources'), '2025-04-01').outputs.webIdentityPrincipalId.value]"
+    },
+    "WEB_IDENTITY_CLIENT_ID": {
+      "type": "string",
+      "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, parameters('resourceGroupName')), 'Microsoft.Resources/deployments', 'podcaster-resources'), '2025-04-01').outputs.webIdentityClientId.value]"
     }
   }
 }

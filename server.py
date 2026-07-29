@@ -26,7 +26,7 @@ from agent_framework.ag_ui import (
 )
 from azure.core.exceptions import AzureError
 from dotenv import load_dotenv
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, HTTPException, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from starlette.responses import FileResponse, StreamingResponse
@@ -113,7 +113,7 @@ async def strip_unsupported_agui_events(request: Request, call_next):
 
 # Serve generated MP3s. In the cloud the narrator uploads each episode to a
 # PRIVATE blob container, so /audio/<blob> streams it back through the backend's
-# managed identity (Storage Blob Data Reader). Locally (no storage account) it
+# managed identity (Storage Blob Data Contributor). Locally (no storage account) it
 # serves the file the in-process narrator wrote to OUTPUT_DIR.
 _output_dir = Path(config.OUTPUT_DIR)
 _output_dir.mkdir(parents=True, exist_ok=True)
@@ -270,6 +270,39 @@ async def get_episode(episode_name: str) -> dict:
         "image": payload["image"],
         "script": payload["script"],
     }
+
+
+@app.delete("/episodes/{episode_name}", status_code=204)
+async def delete_episode(episode_name: str) -> Response:
+    if not _EPISODE_NAME_RE.match(episode_name):
+        raise HTTPException(status_code=400, detail="Invalid episode name")
+
+    base_name = Path(episode_name).stem
+    deleted = False
+    try:
+        if storage.storage_configured():
+            prefix = f"{base_name}."
+            blob_names = [
+                str(blob["name"])
+                for blob in storage.list_blobs()
+                if "/" not in str(blob["name"])
+                and str(blob["name"]).startswith(prefix)
+            ]
+            for blob_name in blob_names:
+                storage.delete_blob(blob_name)
+                deleted = True
+
+        for path in _output_dir.glob(f"{base_name}.*"):
+            if path.is_file():
+                path.unlink()
+                deleted = True
+    except (AzureError, OSError, RuntimeError, TypeError, ValueError) as exc:
+        logger.exception("Failed to delete episode %s", episode_name)
+        raise HTTPException(status_code=500, detail="Failed to delete episode") from exc
+
+    if not deleted:
+        raise HTTPException(status_code=404, detail="Episode not found")
+    return Response(status_code=204)
 
 
 # Serve generated cover-art PNGs (e.g. /images/podcast.png). The image branch

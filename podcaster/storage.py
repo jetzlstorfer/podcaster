@@ -143,6 +143,14 @@ def download_bytes(blob_name: str, *, container: str | None = None) -> bytes:
     return blob.download_blob(max_concurrency=1).readall()
 
 
+def delete_blob(blob_name: str, *, container: str | None = None) -> None:
+    """Delete ``container``/``blob_name`` and any snapshots."""
+    container = container or config.AZURE_STORAGE_CONTAINER
+    blob = _client().get_blob_client(container=container, blob=blob_name)
+    blob.delete_blob(delete_snapshots="include")
+    logger.info("Deleted blob %s/%s", container, blob_name)
+
+
 def list_blobs(
     *,
     container: str | None = None,

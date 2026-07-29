@@ -1,6 +1,12 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 
-import { backendUrl, getEpisode, listEpisodes, runPodcast } from "./api";
+import {
+  backendUrl,
+  deleteEpisode,
+  getEpisode,
+  listEpisodes,
+  runPodcast,
+} from "./api";
 import {
   EpisodeSummary,
   Language,
@@ -51,6 +57,7 @@ export default function App(): React.JSX.Element {
   const [episodes, setEpisodes] = useState<EpisodeSummary[]>([]);
   const [episodesLoading, setEpisodesLoading] = useState(false);
   const [selectedEpisodeId, setSelectedEpisodeId] = useState<string | null>(null);
+  const [deletingEpisodeId, setDeletingEpisodeId] = useState<string | null>(null);
 
   const isRunning = status === "running";
   const activeStages = useMemo(
@@ -90,6 +97,32 @@ export default function App(): React.JSX.Element {
       setDoneStages(new Set());
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
+    }
+  };
+
+  const handleDeleteEpisode = async (episode: EpisodeSummary) => {
+    if (
+      isRunning ||
+      deletingEpisodeId ||
+      !window.confirm(`Delete "${episode.title}" and all of its files?`)
+    ) {
+      return;
+    }
+
+    setDeletingEpisodeId(episode.id);
+    setError(null);
+    try {
+      await deleteEpisode(episode.id);
+      setEpisodes((current) => current.filter((item) => item.id !== episode.id));
+      if (selectedEpisodeId === episode.id) {
+        setSelectedEpisodeId(null);
+        setResult(null);
+        setStatus("idle");
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setDeletingEpisodeId(null);
     }
   };
 
@@ -170,16 +203,26 @@ export default function App(): React.JSX.Element {
         )}
         <ul className="episode-list">
           {episodes.map((episode) => (
-            <li key={episode.id}>
+            <li className="episode-row" key={episode.id}>
               <button
                 className={`episode-item ${selectedEpisodeId === episode.id ? "episode-item-active" : ""}`}
                 onClick={() => void handleOpenEpisode(episode.id)}
-                disabled={isRunning}
+                disabled={isRunning || deletingEpisodeId === episode.id}
               >
                 <span className="episode-title">{episode.title}</span>
                 <span className="episode-meta">
                   {episode.turns} turns · {episode.language}
                 </span>
+              </button>
+              <button
+                className="episode-delete"
+                type="button"
+                aria-label={`Delete ${episode.title}`}
+                title="Delete episode"
+                disabled={isRunning || deletingEpisodeId !== null}
+                onClick={() => void handleDeleteEpisode(episode)}
+              >
+                {deletingEpisodeId === episode.id ? "…" : "×"}
               </button>
             </li>
           ))}
