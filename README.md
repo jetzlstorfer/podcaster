@@ -136,6 +136,40 @@ make agent-wheels   # vendor the shared podcaster wheel into each src/<agent>/
 azd up              # provision infra + deploy all services
 ```
 
+### Post-deployment: Assign roles to the Container App
+
+Due to subscription ABAC (Attribute-Based Access Control) policies, role assignments
+cannot be created during deployment. After `azd up` completes, manually assign the
+Container App's managed identity the roles it needs to pull container images and
+access blob storage:
+
+```bash
+# Get the web Container App's principal ID (printed at the end of azd up)
+PRINCIPAL_ID="$(azd env get-values --output json | jq -r '.RESOURCE_GROUP_PRINCIPAL_ID // .WEB_IDENTITY_PRINCIPAL_ID')"
+
+# Or retrieve it from Azure directly:
+RESOURCE_GROUP="$(azd env get-values --output json | jq -r '.RESOURCE_GROUP_NAME // "rg-podcaster"')"
+WEB_IDENTITY_ID="$(az container app show -n "pod*" -g "$RESOURCE_GROUP" --query "identity.principalId" -o tsv 2>/dev/null || echo '')"
+
+# Get the registry and storage account resource IDs
+ACR_ID="$(az acr show -n pod* -g "$RESOURCE_GROUP" --query id -o tsv 2>/dev/null)"
+STORAGE_ID="$(az storage account show -n pod* -g "$RESOURCE_GROUP" --query id -o tsv 2>/dev/null)"
+
+# Assign ACR Pull role (7f951dda-4ed3-4680-a7ca-43fe172d538d)
+az role assignment create \
+  --assignee-object-id "$PRINCIPAL_ID" \
+  --assignee-principal-type ServicePrincipal \
+  --role "AcrPull" \
+  --scope "$ACR_ID"
+
+# Assign Blob Data Contributor role (ba92f5b4-2d11-453d-a403-e96b0029c9fe)
+az role assignment create \
+  --assignee-object-id "$PRINCIPAL_ID" \
+  --assignee-principal-type ServicePrincipal \
+  --role "Storage Blob Data Contributor" \
+  --scope "$STORAGE_ID"
+```
+
 Setting the `*_AGENT_NAME` env vars on the web app routes each stage to its
 deployed hosted agent; leaving them blank runs every stage in-process. Generated
 audio and script JSON can be uploaded to a private blob container and streamed
