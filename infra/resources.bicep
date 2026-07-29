@@ -147,12 +147,6 @@ resource web 'Microsoft.App/containerApps@2024-03-01' = {
       '${webIdentity.id}': {}
     }
   }
-  // Make sure the identity has AcrPull/Blob roles before the first revision
-  // validates the ACR registry credential.
-  dependsOn: [
-    acrPull
-    blobContributor
-  ]
   properties: {
     managedEnvironmentId: containerEnv.id
     configuration: {
