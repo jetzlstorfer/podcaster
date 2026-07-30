@@ -134,6 +134,14 @@ async def narrate(script: PodcastScript) -> str:
             "Azure Speech resource that supports MAI-Voice-2.]"
         )
 
+    if config.USE_SPEECH_ENTRA_AUTH and not config.AZURE_SPEECH_RESOURCE_ID:
+        return (
+            "[Audio skipped: AZURE_SPEECH_RESOURCE_ID is not set — Entra ID auth "
+            "for the Speech TTS REST API requires the ARM account resource ID in "
+            "'aad#<resourceId>#<token>' format. Add it to your .env file or "
+            "deployment parameters (azureSpeechResourceId).]"
+        )
+
     audio = await synthesize_script(script)
     if storage.storage_configured():
         blob = audio_blob_name(script)
