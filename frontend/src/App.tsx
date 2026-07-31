@@ -158,6 +158,11 @@ export default function App(): React.JSX.Element {
     setStatus((prev) => (prev === "running" ? "done" : prev));
   };
 
+  const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    void handleGenerate();
+  };
+
   const audioIsUrl = result?.audio?.startsWith("/audio/");
   const imageIsUrl = result?.image?.startsWith("/images/");
 
@@ -243,7 +248,7 @@ export default function App(): React.JSX.Element {
         </p>
         </header>
 
-        <section className="card">
+        <form className="card" onSubmit={handleSubmit}>
         <label className="field">
           <span>Topic</span>
           <textarea
@@ -252,6 +257,12 @@ export default function App(): React.JSX.Element {
             rows={3}
             disabled={isRunning}
             onChange={(e) => setTopic(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.ctrlKey && e.key === "Enter") {
+                e.preventDefault();
+                e.currentTarget.form?.requestSubmit();
+              }
+            }}
           />
         </label>
 
@@ -284,12 +295,12 @@ export default function App(): React.JSX.Element {
 
         <button
           className="generate"
-          onClick={handleGenerate}
+          type="submit"
           disabled={isRunning || !topic.trim()}
         >
           {isRunning ? "Generating…" : "Generate podcast"}
         </button>
-        </section>
+        </form>
 
         {status !== "idle" && (
           <section className="card">
