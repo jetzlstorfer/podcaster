@@ -36,6 +36,8 @@ jobs:
       RESEARCHER_AGENT_NAME:             ${{ vars.RESEARCHER_AGENT_NAME }}
       SCRIPTWRITER_AGENT_NAME:           ${{ vars.SCRIPTWRITER_AGENT_NAME }}
       NARRATOR_AGENT_NAME:               ${{ vars.NARRATOR_AGENT_NAME }}
+      AZURE_SPEECH_ENDPOINT:             ${{ vars.AZURE_SPEECH_ENDPOINT }}
+      AZURE_SPEECH_RESOURCE_ID:          ${{ vars.AZURE_SPEECH_RESOURCE_ID }}
       AUTH_CLIENT_ID:                    ${{ vars.AUTH_CLIENT_ID }}
       AUTH_CLIENT_SECRET:                ${{ secrets.AUTH_CLIENT_SECRET }}
 
@@ -65,6 +67,8 @@ jobs:
 
       - name: Hydrate azd environment
         run: |
+          : "${AZURE_SPEECH_ENDPOINT:?Set the AZURE_SPEECH_ENDPOINT variable in the production GitHub environment}"
+          : "${AZURE_SPEECH_RESOURCE_ID:?Set the AZURE_SPEECH_RESOURCE_ID variable in the production GitHub environment}"
           azd env new "$AZURE_ENV_NAME" --no-prompt \
             --subscription "$AZURE_SUBSCRIPTION_ID" \
             --location "$AZURE_LOCATION" || azd env select "$AZURE_ENV_NAME"
@@ -79,6 +83,8 @@ jobs:
           azd env set RESEARCHER_AGENT_NAME             "$RESEARCHER_AGENT_NAME"
           azd env set SCRIPTWRITER_AGENT_NAME           "$SCRIPTWRITER_AGENT_NAME"
           azd env set NARRATOR_AGENT_NAME               "$NARRATOR_AGENT_NAME"
+          azd env set AZURE_SPEECH_ENDPOINT             "$AZURE_SPEECH_ENDPOINT"
+          azd env set AZURE_SPEECH_RESOURCE_ID          "$AZURE_SPEECH_RESOURCE_ID"
 
       - name: Provision infrastructure
         run: azd provision --no-prompt
