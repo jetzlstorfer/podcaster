@@ -4,7 +4,7 @@ agent-framework-core>=1.12.1
 agent-framework-foundry>=1.10.3
 agent-framework-foundry-hosting
 # a260618 imports mcp but doesn't declare it (see src/researcher/requirements.txt).
-mcp>=1.28.1,<2
+mcp>=2.0.0,<3
 azure-identity
 python-dotenv
 ./podcaster-0.1.0-py3-none-any.whl
