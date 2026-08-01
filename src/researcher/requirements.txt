@@ -8,7 +8,7 @@ agent-framework-foundry>=1.10.3
 agent-framework-foundry-hosting
 # a260618 imports `from mcp import McpError` but doesn't declare mcp as a
 # dependency; pin to the same range agent-framework-core uses for its `all` extra.
-mcp>=1.28.1,<2
+mcp>=2.0.0,<3
 azure-identity
 python-dotenv
 ./podcaster-0.1.0-py3-none-any.whl
