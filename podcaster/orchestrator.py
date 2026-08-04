@@ -26,7 +26,11 @@ from pathlib import Path
 from azure.identity import DefaultAzureCredential
 
 from podcaster import config, storage
-from podcaster.agents._resilience import InvalidModelResponse, run_agent_resilient
+from podcaster.agents._resilience import (
+    InvalidModelResponse,
+    is_session_not_ready,
+    run_agent_resilient,
+)
 from podcaster.agents.narrator import (
     audio_blob_name,
     run_narrator,
@@ -86,13 +90,21 @@ async def research(request: PodcastRequest) -> ResearchBrief:
     """Produce a research brief — via the hosted researcher agent or in-process."""
     if config.RESEARCHER_AGENT_NAME:
         logger.info("[research] invoking hosted agent %s", config.RESEARCHER_AGENT_NAME)
-        text = await _invoke_hosted(
-            config.RESEARCHER_AGENT_NAME,
-            config.RESEARCHER_AGENT_VERSION,
-            request.model_dump_json(),
-            validate_text=lambda text: parse_research_brief(text, request),
-        )
-        return parse_research_brief(text, request)
+        try:
+            text = await _invoke_hosted(
+                config.RESEARCHER_AGENT_NAME,
+                config.RESEARCHER_AGENT_VERSION,
+                request.model_dump_json(),
+                validate_text=lambda text: parse_research_brief(text, request),
+            )
+            return parse_research_brief(text, request)
+        except Exception as exc:
+            if not is_session_not_ready(exc):
+                raise
+            logger.warning(
+                "[research] hosted agent %s is not ready; falling back to in-process",
+                config.RESEARCHER_AGENT_NAME,
+            )
     return await run_researcher(request)
 
 
@@ -102,13 +114,21 @@ async def write_script(brief: ResearchBrief) -> PodcastScript:
         logger.info(
             "[write_script] invoking hosted agent %s", config.SCRIPTWRITER_AGENT_NAME
         )
-        text = await _invoke_hosted(
-            config.SCRIPTWRITER_AGENT_NAME,
-            config.SCRIPTWRITER_AGENT_VERSION,
-            brief.model_dump_json(),
-            validate_text=lambda text: parse_script(text, brief),
-        )
-        return parse_script(text, brief)
+        try:
+            text = await _invoke_hosted(
+                config.SCRIPTWRITER_AGENT_NAME,
+                config.SCRIPTWRITER_AGENT_VERSION,
+                brief.model_dump_json(),
+                validate_text=lambda text: parse_script(text, brief),
+            )
+            return parse_script(text, brief)
+        except Exception as exc:
+            if not is_session_not_ready(exc):
+                raise
+            logger.warning(
+                "[write_script] hosted agent %s is not ready; falling back to in-process",
+                config.SCRIPTWRITER_AGENT_NAME,
+            )
     return await run_scriptwriter(brief)
 
 
@@ -121,12 +141,20 @@ async def narrate(script: PodcastScript) -> str:
     """
     if config.NARRATOR_AGENT_NAME:
         logger.info("[narrate] invoking hosted agent %s", config.NARRATOR_AGENT_NAME)
-        text = await _invoke_hosted(
-            config.NARRATOR_AGENT_NAME,
-            config.NARRATOR_AGENT_VERSION,
-            script.model_dump_json(),
-        )
-        return _audio_ref_from_hosted(text)
+        try:
+            text = await _invoke_hosted(
+                config.NARRATOR_AGENT_NAME,
+                config.NARRATOR_AGENT_VERSION,
+                script.model_dump_json(),
+            )
+            return _audio_ref_from_hosted(text)
+        except Exception as exc:
+            if not is_session_not_ready(exc):
+                raise
+            logger.warning(
+                "[narrate] hosted agent %s is not ready; falling back to in-process",
+                config.NARRATOR_AGENT_NAME,
+            )
 
     if not config.AZURE_SPEECH_ENDPOINT:
         return (

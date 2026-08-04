@@ -45,6 +45,14 @@ _RATE_LIMIT_MARKERS = ("rate_limit", "rate limit", "429", "too many requests")
 # rate limits and back off rather than failing the whole workflow.
 _TRANSIENT_BAD_REQUEST_MARKERS = ("invalid_payload", "invalid request payload")
 
+# Hosted Foundry code-agent containers can briefly report 424 session_not_ready
+# during cold start / rollout while the platform waits for /readiness.
+_SESSION_NOT_READY_MARKERS = (
+    "session_not_ready",
+    "did not become ready within the expected timeout",
+    "/readiness endpoint returns http 200",
+)
+
 # A builder receives (model, project_endpoint) — ``None`` means "use the
 # env-configured primary" — and returns a ready-to-run Agent.
 AgentBuilder = Callable[[str | None, str | None], Agent]
@@ -99,11 +107,28 @@ def _is_transient_bad_request(exc: BaseException) -> bool:
     return any(marker in message for marker in _TRANSIENT_BAD_REQUEST_MARKERS)
 
 
+def is_session_not_ready(exc: BaseException) -> bool:
+    """Detect hosted-agent 424 readiness timeouts that are usually transient."""
+    message = str(exc).lower()
+    if any(marker in message for marker in _SESSION_NOT_READY_MARKERS):
+        return True
+
+    seen: set[int] = set()
+    cur: BaseException | None = exc
+    while cur is not None and id(cur) not in seen:
+        seen.add(id(cur))
+        if getattr(cur, "status_code", None) == 424:
+            return True
+        cur = cur.__cause__ or cur.__context__
+    return False
+
+
 def _should_retry(exc: BaseException) -> bool:
     return (
         isinstance(exc, (EmptyModelResponse, InvalidModelResponse))
         or _is_rate_limit(exc)
         or _is_transient_bad_request(exc)
+        or is_session_not_ready(exc)
     )
 
 
@@ -187,6 +212,8 @@ async def run_agent_resilient(
                 reason = "invalid structured response"
             elif _is_rate_limit(exc):
                 reason = "rate limit"
+            elif is_session_not_ready(exc):
+                reason = "hosted session not ready"
             else:
                 reason = "transient invalid_payload"
             total_wait = wait + random.uniform(0, 0.5)

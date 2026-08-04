@@ -96,6 +96,51 @@ def test_transient_invalid_payload_is_retryable():
     assert not _is_transient_bad_request(Exception("some other failure"))
 
 
+def test_session_not_ready_is_retryable():
+    from podcaster.agents._resilience import _should_retry, is_session_not_ready
+
+    err = Exception(
+        "Error code: 424 - {'error': {'code': 'session_not_ready', "
+        "'message': 'did not become ready within the expected timeout'}}"
+    )
+    assert is_session_not_ready(err)
+    assert _should_retry(err)
+
+
+def test_run_agent_resilient_retries_on_session_not_ready():
+    import asyncio
+
+    from podcaster.agents import _resilience
+
+    calls = {"n": 0}
+
+    class _FakeResult:
+        def __init__(self, text):
+            self.text = text
+
+    class _FakeAgent:
+        async def run(self, prompt):
+            calls["n"] += 1
+            if calls["n"] < 3:
+                raise Exception(
+                    "Error code: 424 - {'error': {'code': 'session_not_ready'}}"
+                )
+            return _FakeResult(f"ok:{prompt}")
+
+    async def _no_sleep(_seconds):
+        return None
+
+    result = asyncio.run(
+        _resilience.run_agent_resilient(
+            lambda model, endpoint: _FakeAgent(),
+            "hello",
+            sleep=_no_sleep,
+        )
+    )
+    assert result.text == "ok:hello"
+    assert calls["n"] == 3
+
+
 def test_run_agent_resilient_retries_then_succeeds():
     import asyncio
 
