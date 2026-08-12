@@ -43,7 +43,7 @@ Built with **Microsoft Agent Framework** (`agent-framework-foundry`) and **Micro
 - *(For audio)* An Azure Speech / Foundry resource in a MAI-Voice-2-supported
   region (e.g. `swedencentral`, `eastus`) with the **Cognitive Services Speech
   User** role assigned to your identity
-
+- Use `.env` file for setting the environment variables
 ---
 
 ## Quick start
