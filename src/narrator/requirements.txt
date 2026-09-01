@@ -1,10 +1,10 @@
 # Hosted narrator agent dependencies. Non-LLM code agent: needs the workflow
 # runtime + Speech (requests) + Blob upload (azure-storage-blob), all pulled in
 # by the vendored `podcaster` wheel (`make agent-wheels`).
-agent-framework-core>=1.12.1
+agent-framework-core>=1.16.0
 agent-framework-foundry-hosting
 # a260618 imports mcp but doesn't declare it (see src/researcher/requirements.txt).
-mcp>=2.0.0,<3
+mcp>=2.1.1,<3
 azure-identity
 azure-storage-blob
 requests
