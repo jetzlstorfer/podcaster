@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools>=83.0.0", "wheel"]
+requires = ["setuptools>=84.0.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -8,8 +8,8 @@ version = "0.1.0"
 description = "Shared library (models, config, resilience, storage, observability) for the podcaster multi-agent app."
 requires-python = ">=3.11"
 dependencies = [
-    "agent-framework-core>=1.12.1",
-    "agent-framework-foundry>=1.10.3",
+    "agent-framework-core>=1.16.0",
+    "agent-framework-foundry>=1.11.0",
     "azure-identity",
     "azure-storage-blob",
     "pydantic",
