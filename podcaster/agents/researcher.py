@@ -7,7 +7,11 @@ import re
 from agent_framework import Agent
 from agent_framework.foundry import FoundryChatClient
 
-from podcaster.agents._resilience import make_foundry_client, run_agent_resilient
+from podcaster.agents._resilience import (
+    is_session_not_ready,
+    make_foundry_client,
+    run_agent_resilient,
+)
 from podcaster.models import LENGTH_SPECS, PodcastRequest, ResearchBrief, length_spec
 
 logger = logging.getLogger(__name__)
@@ -136,6 +140,41 @@ async def run_researcher(request: PodcastRequest) -> ResearchBrief:
             tools=[dict(FoundryChatClient.get_web_search_tool())],
         )
 
-    result = await run_agent_resilient(build, request.topic)
-    logger.debug("Researcher raw response: %d chars", len(result.text or ""))
-    return parse_research_brief(result.text, request)
+    try:
+        result = await run_agent_resilient(build, request.topic)
+        logger.debug("Researcher raw response: %d chars", len(result.text or ""))
+        return parse_research_brief(result.text, request)
+    except Exception as exc:
+        if not is_session_not_ready(exc):
+            raise
+        logger.warning(
+            "[research] Foundry session not ready after retries; using fallback brief"
+        )
+        return _fallback_research_brief(request)
+
+
+def _fallback_research_brief(request: PodcastRequest) -> ResearchBrief:
+    """Provide a deterministic brief when Foundry is temporarily unavailable."""
+    spec = length_spec(request.length)
+    fact_count = max(3, min(8, int(spec.facts.split("-", 1)[0])))
+    facts = [
+        f"Definition and scope of {request.topic}.",
+        f"Recent milestones and major developments related to {request.topic}.",
+        f"Practical implications for a general audience interested in {request.topic}.",
+    ]
+    facts.extend(
+        f"Key question #{idx}: what evidence supports current claims about {request.topic}?"
+        for idx in range(4, fact_count + 1)
+    )
+    return ResearchBrief(
+        topic=request.topic,
+        summary=(
+            f"Automated research is temporarily unavailable for '{request.topic}', "
+            "so this episode uses a structured fallback brief focused on core "
+            "concepts, recent developments, and open questions."
+        ),
+        key_facts=facts,
+        sources=[],
+        language=request.language,
+        length=request.length,
+    )

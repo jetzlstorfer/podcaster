@@ -12,6 +12,7 @@ from podcaster.models import (
     DialogueTurn,
     PodcastRequest,
     PodcastScript,
+    ResearchBrief,
     length_spec,
 )
 from podcaster.workflow import _parse_request, _text_from_messages
@@ -418,3 +419,32 @@ def test_image_dimensions_parse_size():
         assert _image_dimensions() == (1024, 1024)
     finally:
         config.IMAGE_SIZE = original
+
+
+def test_research_fallback_brief_shape():
+    from podcaster.agents.researcher import _fallback_research_brief
+
+    req = PodcastRequest(topic="Fusion", length="medium", language="english")
+    brief = _fallback_research_brief(req)
+    assert brief.topic == "Fusion"
+    assert brief.language == "english"
+    assert brief.length == "medium"
+    assert len(brief.key_facts) >= 3
+
+
+def test_scriptwriter_fallback_script_shape():
+    from podcaster.agents.scriptwriter import _fallback_script
+
+    brief = ResearchBrief(
+        topic="Fusion",
+        summary="S",
+        key_facts=["Fact A", "Fact B"],
+        sources=[],
+        language="english",
+        length="short",
+    )
+    script = _fallback_script(brief)
+    assert script.title.endswith("Fallback Episode")
+    assert script.language == "english"
+    assert len(script.turns) >= 4
+    assert script.turns[0].speaker == "Alex"

@@ -6,7 +6,11 @@ import re
 
 from agent_framework import Agent
 
-from podcaster.agents._resilience import make_foundry_client, run_agent_resilient
+from podcaster.agents._resilience import (
+    is_session_not_ready,
+    make_foundry_client,
+    run_agent_resilient,
+)
 from podcaster.agents.narrator import INLINE_CUES
 from podcaster.models import (
     DELIVERY_STYLES,
@@ -214,6 +218,61 @@ async def run_scriptwriter(brief: ResearchBrief) -> PodcastScript:
             instructions=_build_instructions(brief.language, brief.length),
         )
 
-    result = await run_agent_resilient(build, _build_prompt(brief))
-    logger.debug("Scriptwriter raw response: %d chars", len(result.text or ""))
-    return parse_script(result.text, brief)
+    try:
+        result = await run_agent_resilient(build, _build_prompt(brief))
+        logger.debug("Scriptwriter raw response: %d chars", len(result.text or ""))
+        return parse_script(result.text, brief)
+    except Exception as exc:
+        if not is_session_not_ready(exc):
+            raise
+        logger.warning(
+            "[write_script] Foundry session not ready after retries; using fallback script"
+        )
+        return _fallback_script(brief)
+
+
+def _fallback_script(brief: ResearchBrief) -> PodcastScript:
+    """Build a minimal alternating dialogue when model generation is unavailable."""
+    turns_text = length_spec(brief.length).turns
+    match = re.search(r"\d+", turns_text)
+    target_turns = int(match.group(0)) if match else 8
+    turns: list[DialogueTurn] = []
+    opening = (
+        f"Today we are exploring {brief.topic}. Our AI writer is temporarily "
+        "unavailable, so we will walk through the key ideas in a concise format."
+    )
+    turns.append(DialogueTurn(speaker="Alex", style="neutral", text=opening))
+
+    facts = brief.key_facts or [
+        f"{brief.topic} has multiple dimensions worth evaluating.",
+        f"Recent developments in {brief.topic} should be interpreted with evidence.",
+    ]
+    idx = 0
+    while len(turns) < max(4, target_turns - 1):
+        speaker = "Jordan" if len(turns) % 2 else "Alex"
+        fact = facts[idx % len(facts)]
+        turns.append(
+            DialogueTurn(
+                speaker=speaker,
+                style="neutral",
+                text=f"Key point: {fact}",
+            )
+        )
+        idx += 1
+
+    turns.append(
+        DialogueTurn(
+            speaker="Jordan" if len(turns) % 2 else "Alex",
+            style="neutral",
+            text=(
+                "That is our fallback summary. We will retry full AI generation "
+                "on the next run when the service is ready."
+            ),
+        )
+    )
+
+    return PodcastScript(
+        title=f"{brief.topic} - Fallback Episode",
+        turns=turns,
+        language=brief.language,
+    )
