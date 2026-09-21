@@ -1,29 +1,34 @@
 {
-	"name": "Podcaster - Python + React + Microsoft Agent Framework",
-	"image": "mcr.microsoft.com/devcontainers/python:3.12",
-	"features": {
-		"ghcr.io/devcontainers/features/github-cli:1": {},
-		"ghcr.io/azure/azure-dev/azd:0": {},
-		"ghcr.io/devcontainers/features/node:2.1.0": {
-			"version": "lts"
-		}
-	},
-	"customizations": {
-		"vscode": {
-			"extensions": [
-				"ms-python.python",
-				"ms-python.vscode-pylance",
-				"dbaeumer.vscode-eslint",
-				"esbenp.prettier-vscode",
-				"ms-azuretools.vscode-azure-github-copilot",
-				"ms-windows-ai-studio.windows-ai-studio"
-			]
-		}
-	},
-	"mounts": [
-		"source=${localEnv:HOME}/.config/gh,target=/home/vscode/.config/gh,type=bind,consistency=cached",
-		"source=${localEnv:HOME}/.azure,target=/home/vscode/.azure,type=bind,consistency=cached",
-		"source=${localEnv:HOME}/.git-credentials,target=/home/vscode/.git-credentials,type=bind,consistency=cached"
-	],
-	"postCreateCommand": "curl -fsSL 'https://azurecliprod.blob.core.windows.net/$root/deb_install.sh' | sudo bash && azd update && pip install --upgrade pip && pip install ruff && make install && cd frontend && npm install"
+  "name": "Podcaster - Python + React + Microsoft Agent Framework",
+  "image": "mcr.microsoft.com/devcontainers/javascript-node:22",
+  "features": {
+    "ghcr.io/devcontainers/features/python:1": {
+      "version": "3.12",
+      "installTools": false
+    },
+    "ghcr.io/devcontainers/features/github-cli:1": {},
+    "ghcr.io/azure/azure-dev/azd:0": {}
+  },
+  "containerEnv": {
+    "NPM_CONFIG_REGISTRY": "https://packagefeedproxy.microsoft.io/npm/",
+    "PIP_INDEX_URL": "https://packagefeedproxy.microsoft.io/pypi/simple"
+  },
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "ms-python.python",
+        "ms-python.vscode-pylance",
+        "dbaeumer.vscode-eslint",
+        "esbenp.prettier-vscode",
+        "ms-azuretools.vscode-azure-github-copilot",
+        "ms-windows-ai-studio.windows-ai-studio"
+      ]
+    }
+  },
+  "mounts": [
+    "source=${localEnv:HOME}/.config/gh,target=/home/vscode/.config/gh,type=bind,consistency=cached",
+    "source=${localEnv:HOME}/.azure,target=/home/vscode/.azure,type=bind,consistency=cached",
+    "source=${localEnv:HOME}/.git-credentials,target=/home/vscode/.git-credentials,type=bind,consistency=cached"
+  ],
+  "postCreateCommand": "pip install --upgrade pip && pip install ruff && make install && cd frontend && npm install"
 }
