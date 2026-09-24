@@ -74,6 +74,10 @@ class InvalidModelResponse(RuntimeError):
     """Raised when model text does not satisfy the required output contract."""
 
 
+class AgentRunTimeout(RuntimeError):
+    """Raised when an agent invocation exceeds its configured attempt timeout."""
+
+
 def make_foundry_client(
     model: str | None = None, project_endpoint: str | None = None
 ) -> Any:
@@ -109,6 +113,9 @@ def _is_transient_bad_request(exc: BaseException) -> bool:
 
 def is_session_not_ready(exc: BaseException) -> bool:
     """Detect hosted-agent 424 readiness timeouts that are usually transient."""
+    if isinstance(exc, AgentRunTimeout):
+        return True
+
     message = str(exc).lower()
     if any(marker in message for marker in _SESSION_NOT_READY_MARKERS):
         return True
@@ -158,6 +165,8 @@ async def run_agent_resilient(
     max_attempts: int = _MAX_ATTEMPTS,
     require_text: bool = True,
     validate_result: ResultValidator | None = None,
+    attempt_timeout_seconds: float | None = None,
+    max_session_not_ready_attempts: int | None = None,
     sleep: Callable[[float], Awaitable[None]] = asyncio.sleep,
 ) -> Any:
     """Run ``agent.run(prompt)`` with backoff on retryable errors, then fail over.
@@ -172,6 +181,7 @@ async def run_agent_resilient(
         config.FOUNDRY_MODEL_FALLBACK or config.FOUNDRY_PROJECT_ENDPOINT_FALLBACK
     )
     delay = _BASE_DELAY
+    session_not_ready_attempts = 0
 
     for attempt in range(1, max_attempts + 1):
         use_fallback = has_fallback and attempt > _ATTEMPTS_BEFORE_FALLBACK
@@ -189,7 +199,16 @@ async def run_agent_resilient(
                 endpoint or "<primary>",
             )
         try:
-            result = await agent.run(prompt)
+            try:
+                if attempt_timeout_seconds is None:
+                    result = await agent.run(prompt)
+                else:
+                    async with asyncio.timeout(attempt_timeout_seconds):
+                        result = await agent.run(prompt)
+            except TimeoutError as exc:
+                raise AgentRunTimeout(
+                    f"Agent run timed out after {attempt_timeout_seconds:g} seconds"
+                ) from exc
             if require_text and not (getattr(result, "text", None) or "").strip():
                 raise EmptyModelResponse(
                     "Model returned an empty response (no final text)"
@@ -198,6 +217,19 @@ async def run_agent_resilient(
                 validate_result(result)
             return result
         except Exception as exc:
+            session_not_ready = is_session_not_ready(exc)
+            if session_not_ready:
+                session_not_ready_attempts += 1
+                if (
+                    max_session_not_ready_attempts is not None
+                    and session_not_ready_attempts >= max_session_not_ready_attempts
+                ):
+                    logger.error(
+                        "Giving up after %d hosted session readiness failures: %s",
+                        session_not_ready_attempts,
+                        exc,
+                    )
+                    raise
             if not _should_retry(exc) or attempt == max_attempts:
                 if attempt == max_attempts:
                     logger.error("Giving up after %d attempts: %s", attempt, exc)
@@ -212,7 +244,7 @@ async def run_agent_resilient(
                 reason = "invalid structured response"
             elif _is_rate_limit(exc):
                 reason = "rate limit"
-            elif is_session_not_ready(exc):
+            elif session_not_ready:
                 reason = "hosted session not ready"
             else:
                 reason = "transient invalid_payload"

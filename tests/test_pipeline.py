@@ -142,6 +142,39 @@ def test_run_agent_resilient_retries_on_session_not_ready():
     assert calls["n"] == 3
 
 
+def test_run_agent_resilient_bounds_hosted_session_timeouts():
+    import asyncio
+
+    from podcaster.agents import _resilience
+
+    calls = {"n": 0}
+
+    class _HangingAgent:
+        async def run(self, prompt):
+            calls["n"] += 1
+            await asyncio.sleep(1)
+
+    async def _no_sleep(_seconds):
+        return None
+
+    try:
+        asyncio.run(
+            _resilience.run_agent_resilient(
+                lambda model, endpoint: _HangingAgent(),
+                "hello",
+                attempt_timeout_seconds=0.01,
+                max_session_not_ready_attempts=2,
+                sleep=_no_sleep,
+            )
+        )
+    except _resilience.AgentRunTimeout as exc:
+        assert "timed out" in str(exc)
+    else:
+        raise AssertionError("expected AgentRunTimeout to propagate")
+
+    assert calls["n"] == 2
+
+
 def test_run_agent_resilient_retries_then_succeeds():
     import asyncio
 

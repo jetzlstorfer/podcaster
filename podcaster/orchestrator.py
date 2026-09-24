@@ -42,6 +42,9 @@ from podcaster.models import PodcastRequest, PodcastScript, ResearchBrief
 
 logger = logging.getLogger(__name__)
 
+_HOSTED_AGENT_ATTEMPT_TIMEOUT_SECONDS = 90.0
+_HOSTED_SESSION_NOT_READY_ATTEMPTS = 2
+
 
 async def _invoke_hosted(
     agent_name: str,
@@ -82,7 +85,13 @@ async def _invoke_hosted(
                 f"Hosted agent {agent_name} returned invalid structured output"
             ) from exc
 
-    result = await run_agent_resilient(build, prompt, validate_result=validate)
+    result = await run_agent_resilient(
+        build,
+        prompt,
+        validate_result=validate,
+        attempt_timeout_seconds=_HOSTED_AGENT_ATTEMPT_TIMEOUT_SECONDS,
+        max_session_not_ready_attempts=_HOSTED_SESSION_NOT_READY_ATTEMPTS,
+    )
     return getattr(result, "text", "") or ""
 
 
