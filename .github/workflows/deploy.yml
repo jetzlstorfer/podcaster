@@ -92,4 +92,12 @@ jobs:
         run: azd provision --no-prompt
 
       - name: Deploy services
-        run: azd deploy --no-prompt
+        run: |
+          services=(web)
+          [[ -n "$RESEARCHER_AGENT_NAME" ]] && services+=(researcher)
+          [[ -n "$SCRIPTWRITER_AGENT_NAME" ]] && services+=(scriptwriter)
+          [[ -n "$NARRATOR_AGENT_NAME" ]] && services+=(narrator)
+
+          for service in "${services[@]}"; do
+            azd deploy "$service" --no-prompt
+          done
