@@ -8,6 +8,21 @@ services:
         project: ./src/narrator
         host: azure.ai.agent
         language: python
+        kind: hosted
+        name: narrator
+        protocols:
+            - protocol: responses
+              version: "2.0.0"
+        env:
+            AZURE_SPEECH_ENDPOINT: ${AZURE_SPEECH_ENDPOINT}
+            AZURE_SPEECH_RESOURCE_ID: ${AZURE_SPEECH_RESOURCE_ID}
+            USE_SPEECH_ENTRA_AUTH: "true"
+            AZURE_STORAGE_ACCOUNT_URL: ${AZURE_STORAGE_ACCOUNT_URL}
+            AZURE_STORAGE_CONTAINER: ${AZURE_STORAGE_CONTAINER}
+        codeConfiguration:
+            runtime: python_3_13
+            entryPoint: main.py
+            dependencyResolution: remote_build
         container:
             resources:
                 cpu: "0.5"
@@ -17,6 +32,17 @@ services:
         project: ./src/researcher
         host: azure.ai.agent
         language: python
+        kind: hosted
+        name: researcher
+        protocols:
+            - protocol: responses
+              version: "2.0.0"
+        env:
+            AZURE_AI_MODEL_DEPLOYMENT_NAME: ${AZURE_AI_MODEL_DEPLOYMENT_NAME}
+        codeConfiguration:
+            runtime: python_3_13
+            entryPoint: main.py
+            dependencyResolution: remote_build
         container:
             resources:
                 cpu: "0.5"
@@ -26,6 +52,17 @@ services:
         project: ./src/scriptwriter
         host: azure.ai.agent
         language: python
+        kind: hosted
+        name: scriptwriter
+        protocols:
+            - protocol: responses
+              version: "2.0.0"
+        env:
+            AZURE_AI_MODEL_DEPLOYMENT_NAME: ${AZURE_AI_MODEL_DEPLOYMENT_NAME}
+        codeConfiguration:
+            runtime: python_3_13
+            entryPoint: main.py
+            dependencyResolution: remote_build
         container:
             resources:
                 cpu: "0.5"
